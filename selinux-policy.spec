@@ -20,7 +20,7 @@
 Summary: SELinux policy configuration
 Name: selinux-policy
 Version: 3.7.19
-Release: 307%{?dist}.3
+Release: 312%{?dist}
 License: GPLv2+
 Group: System Environment/Base
 Source: serefpolicy-%{version}.tgz
@@ -32,7 +32,7 @@ patch4: policy-RHEL6.6-20140414.patch
 patch5: policy-RHEL6.7-e2506.patch
 patch6: policy-RHEL6.8-58ad9.patch
 patch7: policy-RHEL6.9-9e21f.patch
-patch8: policy-RHEL6.9.z-637b8.patch
+patch8: policy-RHEL6.10-637b8.patch
 Source1: modules-targeted.conf
 Source2: booleans-targeted.conf
 Source3: Makefile.devel
@@ -498,19 +498,26 @@ exit 0
 %endif
 
 %changelog
-* Wed Dec 06 2017 Lukas Vrabec  <lvrabec@redhat.com> 3.7.19-307.3
+* Wed Dec 06 2017 Lukas Vrabec  <lvrabec@redhat.com> 3.7.19-312
+- Apply also patch for RHEL-6.10
+- Increase nvr
+Resolves: rhbz#1515499
+
+* Wed Dec 06 2017 Lukas Vrabec  <lvrabec@redhat.com> 3.7.19-311
 - Allow sysadm_t to run puppet_exec_t binaries as puppet_t
-Resolves: rhbz#1522765
+Resolves: rhbz#1515499
 
-* Thu Jun 29 2017 Lukas Vrabec  <lvrabec@redhat.com> 3.7.19-307.2
+* Thu Jun 29 2017 Lukas Vrabec  <lvrabec@redhat.com> 3.7.19-310
 - Label /usr/bin/mysqld_safe_helper as mysqld_exec_t instead of bin_t.
-Resolves: rhbz#1466327
+Resolves: rhbz#1464803
 
-* Thu Jun 22 2017 Lukas Vrabec  <lvrabec@redhat.com> 3.7.19-307.1
-- Allow smbd_t domain generate debugging files under /var/run/gluster. These files are created through the libgfapi.so library that provides integration of a GlusterFS client in the Samba (vfs_glusterfs) process.
-Resolves: rhbz#1462824
+* Thu Jun 22 2017 Lukas Vrabec  <lvrabec@redhat.com> 3.7.19-309
 - Disable mysqld_safe_t secure mode environment cleansing.
-Resolves: rhbz#1464145
+Resolves: rhbz#1463255
+
+* Wed Jun 14 2017 Lukas Vrabec  <lvrabec@redhat.com> 3.7.19-308
+- Allow smbd_t domain generate debugging files under /var/run/gluster. These files are created through the libgfapi.so library that provides integration of a GlusterFS client in the Samba (vfs_glusterfs) process.
+Resolves: rhbz#1461064
 
 * Wed Dec 14 2016 Lukas Vrabec  <lvrabec@redhat.com> 3.7.19-307
 - Allow glusterd_t send signals to userdomain. Label new glusterd binaries as glusterd_exec_t
