@@ -1,0 +1,340 @@
+diff -Nur nsaserefpolicy/policy/flask/access_vectors serefpolicy-3.7.19/policy/flask/access_vectors
+--- nsaserefpolicy/policy/flask/access_vectors	2013-12-13 16:50:06.150138390 +0100
++++ serefpolicy-3.7.19/policy/flask/access_vectors	2014-03-19 16:31:40.528142005 +0100
+@@ -672,6 +672,8 @@
+ 	shmemhost
+ 	getserv
+ 	shmemserv
++    getnetgrp
++    shmemnetgrp
+ }
+ 
+ # Define the access vector interpretation for controlling
+diff -Nur nsaserefpolicy/policy/modules/admin/netutils.te serefpolicy-3.7.19/policy/modules/admin/netutils.te
+--- nsaserefpolicy/policy/modules/admin/netutils.te	2013-12-13 16:50:06.512141572 +0100
++++ serefpolicy-3.7.19/policy/modules/admin/netutils.te	2013-12-13 16:57:27.996652639 +0100
+@@ -188,6 +188,11 @@
+ 	openshift_dontaudit_rw_inherited_fifo_files(ping_t)
+ ')
+ 
++optional_policy(`
++    zabbix_read_inherited_tmp_files(ping_t)
++    zabbix_rw_tcp_socket(ping_t)
++')
++
+ ########################################
+ #
+ # Traceroute local policy
+diff -Nur nsaserefpolicy/policy/modules/admin/sudo.if serefpolicy-3.7.19/policy/modules/admin/sudo.if
+--- nsaserefpolicy/policy/modules/admin/sudo.if	2013-12-13 16:50:06.166138530 +0100
++++ serefpolicy-3.7.19/policy/modules/admin/sudo.if	2014-03-21 14:40:58.671512612 +0100
+@@ -100,6 +100,8 @@
+ 	dev_read_urand($1_sudo_t)
+ 	dev_rw_generic_usb_dev($1_sudo_t)
+ 	dev_read_sysfs($1_sudo_t)
++    dev_dontaudit_getattr_all_chr_files($1_sudo_t)
++    dev_dontaudit_getattr_all_blk_files($1_sudo_t)
+ 
+ 	domain_use_interactive_fds($1_sudo_t)
+ 	domain_sigchld_interactive_fds($1_sudo_t)
+diff -Nur nsaserefpolicy/policy/modules/kernel/domain.te serefpolicy-3.7.19/policy/modules/kernel/domain.te
+--- nsaserefpolicy/policy/modules/kernel/domain.te	2013-12-13 16:50:06.520141642 +0100
++++ serefpolicy-3.7.19/policy/modules/kernel/domain.te	2013-12-13 16:58:34.792180685 +0100
+@@ -115,6 +115,9 @@
+ # create child processes in the domain
+ allow domain self:process { fork getsched sigchld };
+ 
++# glibc wants to access /sys/devices/system/cpu
++dev_read_sysfs(domain)
++
+ # Use trusted objects in /dev
+ dev_rw_null(domain)
+ dev_rw_zero(domain)
+diff -Nur nsaserefpolicy/policy/modules/services/abrt.fc serefpolicy-3.7.19/policy/modules/services/abrt.fc
+--- nsaserefpolicy/policy/modules/services/abrt.fc	2013-12-13 16:50:06.526141694 +0100
++++ serefpolicy-3.7.19/policy/modules/services/abrt.fc	2014-03-28 11:24:42.873643356 +0100
+@@ -26,6 +26,7 @@
+ 
+ /var/cache/abrt-retrace(/.*)?						gen_context(system_u:object_r:abrt_retrace_cache_t,s0)
+ /var/spool/abrt-retrace(/.*)?						gen_context(system_u:object_r:abrt_retrace_spool_t,s0)
++/var/spool/faf(/.*)?						gen_context(system_u:object_r:abrt_retrace_spool_t,s0)
+ 
+ # cjp: new version
+ /usr/bin/retrace-server-worker				--      gen_context(system_u:object_r:abrt_retrace_worker_exec_t,s0)
+diff -Nur nsaserefpolicy/policy/modules/services/abrt.if serefpolicy-3.7.19/policy/modules/services/abrt.if
+--- nsaserefpolicy/policy/modules/services/abrt.if	2013-12-13 16:50:06.208138900 +0100
++++ serefpolicy-3.7.19/policy/modules/services/abrt.if	2014-03-28 11:25:17.678898161 +0100
+@@ -396,6 +396,7 @@
+ 	manage_dirs_pattern($1, abrt_retrace_spool_t, abrt_retrace_spool_t)
+ 	manage_files_pattern($1, abrt_retrace_spool_t, abrt_retrace_spool_t)
+ 	manage_lnk_files_pattern($1, abrt_retrace_spool_t, abrt_retrace_spool_t)
++    manage_sock_files_pattern($1, abrt_retrace_spool_t, abrt_retrace_spool_t)
+ ')
+ 
+ #####################################
+diff -Nur nsaserefpolicy/policy/modules/services/apache.te serefpolicy-3.7.19/policy/modules/services/apache.te
+--- nsaserefpolicy/policy/modules/services/apache.te	2013-12-13 16:50:06.991145782 +0100
++++ serefpolicy-3.7.19/policy/modules/services/apache.te	2014-03-31 10:15:28.623459873 +0200
+@@ -123,6 +123,16 @@
+ 
+ ## <desc>
+ ## <p>
++## Allow Apache to communicate with sssd service via dbus
++## </p>
++## </desc>
++gen_tunable(httpd_dbus_sssd, false)
++
++
++
++
++## <desc>
++## <p>
+ ## Allow httpd cgi support
+ ## </p>
+ ## </desc>
+@@ -776,6 +786,12 @@
+ ')
+ 
+ optional_policy(`
++    tunable_policy(`httpd_dbus_sssd',`
++        sssd_dbus_chat(httpd_t)
++    ')
++')
++
++optional_policy(`
+ 	git_read_generic_sys_content_files(httpd_t)
+ 	gitosis_read_lib_files(httpd_t)
+ ')
+diff -Nur nsaserefpolicy/policy/modules/services/drbd.fc serefpolicy-3.7.19/policy/modules/services/drbd.fc
+--- nsaserefpolicy/policy/modules/services/drbd.fc	2013-12-13 16:50:06.239139172 +0100
++++ serefpolicy-3.7.19/policy/modules/services/drbd.fc	2014-04-14 08:07:52.535841234 +0200
+@@ -2,7 +2,7 @@
+ /sbin/drbdadm		--	gen_context(system_u:object_r:drbd_exec_t,s0)
+ /sbin/drbdsetup		--	gen_context(system_u:object_r:drbd_exec_t,s0)
+ 
+-/usr/lib/ocf/resource.\d/linbit/drbd -- gen_context(system_u:object_r:drbd_exec_t,s0) 
++/usr/lib/ocf/resource\.d/linbit/drbd -- gen_context(system_u:object_r:drbd_exec_t,s0) 
+ 
+ /var/lib/drbd(/.*)?		gen_context(system_u:object_r:drbd_var_lib_t,s0)
+ 
+diff -Nur nsaserefpolicy/policy/modules/services/git.te serefpolicy-3.7.19/policy/modules/services/git.te
+--- nsaserefpolicy/policy/modules/services/git.te	2013-12-13 16:50:06.999145852 +0100
++++ serefpolicy-3.7.19/policy/modules/services/git.te	2014-03-28 10:13:36.729373495 +0100
+@@ -243,6 +243,10 @@
+ 	fs_dontaudit_read_nfs_files(httpd_git_script_t)
+ ')
+ 
++optional_policy(`
++    gitosis_read_lib_files(httpd_git_script_t)
++')
++
+ ########################################
+ #
+ # Git global policy
+diff -Nur nsaserefpolicy/policy/modules/services/openshift.if serefpolicy-3.7.19/policy/modules/services/openshift.if
+--- nsaserefpolicy/policy/modules/services/openshift.if	2013-12-13 16:50:07.005145905 +0100
++++ serefpolicy-3.7.19/policy/modules/services/openshift.if	2014-03-21 13:53:54.596878902 +0100
+@@ -277,6 +277,7 @@
+ 	')
+ 
+ 	files_search_var_lib($1)
++    list_dirs_pattern($1, openshift_var_lib_t, openshift_var_lib_t)
+ 	read_files_pattern($1, openshift_var_lib_t, openshift_var_lib_t)
+     read_lnk_files_pattern($1, openshift_var_lib_t, openshift_var_lib_t)
+ ')
+diff -Nur nsaserefpolicy/policy/modules/services/quantum.fc serefpolicy-3.7.19/policy/modules/services/quantum.fc
+--- nsaserefpolicy/policy/modules/services/quantum.fc	2013-12-13 16:50:07.010145949 +0100
++++ serefpolicy-3.7.19/policy/modules/services/quantum.fc	2013-12-13 16:52:32.895296370 +0100
+@@ -8,6 +8,8 @@
+ /usr/bin/neutron-ryu-agent		--	gen_context(system_u:object_r:neutron_exec_t,s0)
+ /usr/bin/neutron-dhcp-agent		--	gen_context(system_u:object_r:neutron_exec_t,s0)
+ /usr/bin/neutron-l3-agent		--	gen_context(system_u:object_r:neutron_exec_t,s0)
++/usr/bin/neutron-lbaas-agent   --      gen_context(system_u:object_r:neutron_exec_t,s0)
++/usr/bin/neutron-rootwrap      --      gen_context(system_u:object_r:neutron_exec_t,s0)
+ /usr/bin/neutron-ovs-cleanup	--	gen_context(system_u:object_r:neutron_exec_t,s0)
+ 
+ /usr/bin/quantum-server			--	gen_context(system_u:object_r:neutron_exec_t,s0)
+@@ -16,6 +18,8 @@
+ /usr/bin/quantum-ryu-agent		--	gen_context(system_u:object_r:neutron_exec_t,s0)
+ /usr/bin/quantum-dhcp-agent		--	gen_context(system_u:object_r:neutron_exec_t,s0)
+ /usr/bin/quantum-l3-agent		--	gen_context(system_u:object_r:neutron_exec_t,s0)
++/usr/bin/quantum-lbaas-agent   --      gen_context(system_u:object_r:neutron_exec_t,s0)
++/usr/bin/quantum-rootwrap      --      gen_context(system_u:object_r:neutron_exec_t,s0)
+ /usr/bin/quantum-ovs-cleanup	--	gen_context(system_u:object_r:neutron_exec_t,s0)
+ 
+ /var/lib/quantum(/.*)?		gen_context(system_u:object_r:neutron_var_lib_t,s0)
+diff -Nur nsaserefpolicy/policy/modules/services/snmp.te serefpolicy-3.7.19/policy/modules/services/snmp.te
+--- nsaserefpolicy/policy/modules/services/snmp.te	2013-12-13 16:50:07.014145984 +0100
++++ serefpolicy-3.7.19/policy/modules/services/snmp.te	2014-03-19 15:00:37.894285385 +0100
+@@ -100,6 +100,8 @@
+ storage_dontaudit_read_fixed_disk(snmpd_t)
+ storage_dontaudit_read_removable_device(snmpd_t)
+ storage_dontaudit_write_removable_device(snmpd_t)
++storage_getattr_fixed_disk_dev(snmpd_t)
++storage_getattr_removable_dev(snmpd_t)
+ 
+ auth_use_nsswitch(snmpd_t)
+ auth_read_all_dirs_except_shadow(snmpd_t)
+diff -Nur nsaserefpolicy/policy/modules/services/vdagent.fc serefpolicy-3.7.19/policy/modules/services/vdagent.fc
+--- nsaserefpolicy/policy/modules/services/vdagent.fc	2013-12-13 16:50:06.635142653 +0100
++++ serefpolicy-3.7.19/policy/modules/services/vdagent.fc	2014-03-07 10:30:44.095608280 +0100
+@@ -4,7 +4,7 @@
+ /usr/sbin/spice-vdagentd        --  gen_context(system_u:object_r:vdagent_exec_t,s0)
+ 
+ /var/run/spice-vdagentd(/.*)?	gen_context(system_u:object_r:vdagent_var_run_t,s0)
+-/var/run/spice-vdagentd.\pid    --  gen_context(system_u:object_r:vdagent_var_run_t,s0)
++/var/run/spice-vdagentd\.pid    --  gen_context(system_u:object_r:vdagent_var_run_t,s0)
+ 
+ /var/log/spice-vdagentd(/.*)?           gen_context(system_u:object_r:vdagent_log_t,s0)
+ /var/log/spice-vdagentd\.log.*	   --  gen_context(system_u:object_r:vdagent_log_t,s0)
+diff -Nur nsaserefpolicy/policy/modules/services/xserver.te serefpolicy-3.7.19/policy/modules/services/xserver.te
+--- nsaserefpolicy/policy/modules/services/xserver.te	2013-12-13 16:50:06.639142688 +0100
++++ serefpolicy-3.7.19/policy/modules/services/xserver.te	2014-03-31 08:48:28.875754592 +0200
+@@ -371,6 +371,7 @@
+ userdom_use_user_terminals(xauth_t)
+ userdom_read_user_tmp_files(xauth_t)
+ userdom_read_all_users_state(xauth_t)
++userdom_search_user_home_dirs(xauth_t)
+ 
+ ifdef(`hide_broken_symptoms', `
+      fs_dontaudit_rw_anon_inodefs_files(xauth_t)
+diff -Nur nsaserefpolicy/policy/modules/services/zabbix.if serefpolicy-3.7.19/policy/modules/services/zabbix.if
+--- nsaserefpolicy/policy/modules/services/zabbix.if	2013-12-13 16:50:07.018146019 +0100
++++ serefpolicy-3.7.19/policy/modules/services/zabbix.if	2013-12-13 16:56:41.944275816 +0100
+@@ -98,6 +98,42 @@
+ 	allow $1 zabbix_var_run_t:file read_file_perms;
+ ')
+ 
++########################################
++## <summary>
++##	Allow the specified domain to read zabbix's log files.
++## </summary>
++## <param name="domain">
++##	<summary>
++##	Domain allowed access.
++##	</summary>
++## </param>
++## <rolecap/>
++#
++interface(`zabbix_read_inherited_tmp_files',`
++	gen_require(`
++		type zabbix_tmp_t;
++	')
++
++    allow $1 zabbix_tmp_t:file read_inherited_file_perms;
++')
++
++########################################
++## <summary>
++##	Read zabbix PID files.
++## </summary>
++## <param name="domain">
++##	<summary>
++##	Domain allowed access.
++##	</summary>
++## </param>
++#
++interface(`zabbix_rw_tcp_socket',`
++	gen_require(`
++		type zabbix_t;
++	')
++    allow $1 zabbix_t:tcp_socket { read write };
++')
++
+ #######################################
+ ## <summary>
+ ##  Allow connectivity to a zabbix agent
+diff -Nur nsaserefpolicy/policy/modules/services/zabbix.te serefpolicy-3.7.19/policy/modules/services/zabbix.te
+--- nsaserefpolicy/policy/modules/services/zabbix.te	2013-12-13 16:50:07.019146028 +0100
++++ serefpolicy-3.7.19/policy/modules/services/zabbix.te	2013-12-13 17:03:02.769270728 +0100
+@@ -153,6 +153,7 @@
+ 
+ kernel_read_all_sysctls(zabbix_agent_t)
+ kernel_read_system_state(zabbix_agent_t)
++kernel_read_network_state(zabbix_agent_t)
+ 
+ corecmd_exec_shell(zabbix_agent_t)
+ corecmd_exec_bin(zabbix_agent_t)
+@@ -176,10 +177,12 @@
+ corenet_tcp_connect_zabbix_port(zabbix_agent_t)
+ corenet_tcp_sendrecv_zabbix_port(zabbix_agent_t)
+ 
++dev_read_sysfs(zabbix_agent_t)
++
+ dev_getattr_all_blk_files(zabbix_agent_t)
+ dev_getattr_all_chr_files(zabbix_agent_t)
+ 
+-domain_search_all_domains_state(zabbix_agent_t)
++domain_read_all_domains_state(zabbix_agent_t)
+ 
+ files_getattr_all_dirs(zabbix_agent_t)
+ files_getattr_all_files(zabbix_agent_t)
+@@ -198,5 +201,21 @@
+ miscfiles_read_localization(zabbix_agent_t)
+ 
+ optional_policy(`
++    dmidecode_domtrans(zabbix_agent_t)
++')
++
++optional_policy(`
+     hostname_exec(zabbix_agent_t)
+ ')
++
++#probably should be used
++#optional_policy(`
++#    unconfined_domain(zabbix_agent_t)
++#')
++
++tunable_policy(`zabbix_can_network',`
++    corenet_sendrecv_all_client_packets(zabbix_agent_t)
++    corenet_tcp_connect_all_ports(zabbix_agent_t)
++    corenet_tcp_sendrecv_all_ports(zabbix_agent_t)
++')
++
+diff -Nur nsaserefpolicy/policy/modules/system/hostname.te serefpolicy-3.7.19/policy/modules/system/hostname.te
+--- nsaserefpolicy/policy/modules/system/hostname.te	2013-12-13 16:50:06.315139840 +0100
++++ serefpolicy-3.7.19/policy/modules/system/hostname.te	2013-12-13 17:08:04.184558542 +0100
+@@ -49,6 +49,7 @@
+ init_use_fds(hostname_t)
+ init_use_script_fds(hostname_t)
+ init_use_script_ptys(hostname_t)
++init_rw_inherited_script_tmp_files(hostname_t)
+ 
+ logging_send_syslog_msg(hostname_t)
+ 
+diff -Nur nsaserefpolicy/policy/modules/system/logging.te serefpolicy-3.7.19/policy/modules/system/logging.te
+--- nsaserefpolicy/policy/modules/system/logging.te	2013-12-13 16:50:07.023146063 +0100
++++ serefpolicy-3.7.19/policy/modules/system/logging.te	2014-04-11 21:55:29.853900724 +0200
+@@ -446,6 +446,9 @@
+ kernel_clear_ring_buffer(syslogd_t)
+ kernel_change_ring_buffer_level(syslogd_t)
+ 
++corecmd_exec_shell(syslogd_t)
++corecmd_exec_bin(syslogd_t)
++
+ corenet_all_recvfrom_unlabeled(syslogd_t)
+ corenet_all_recvfrom_netlabel(syslogd_t)
+ corenet_udp_sendrecv_generic_if(syslogd_t)
+@@ -499,6 +502,11 @@
+ 
+ mls_file_write_all_levels(syslogd_t) # Need to be able to write to /var/run/ and /var/log directories
+ 
++# caused by openshift syslog plugin
++mcs_file_read_all(syslogd_t)
++dontaudit syslogd_t self:capability sys_ptrace;
++domain_dontaudit_read_all_domains_state(syslogd_t)
++
+ term_write_console(syslogd_t)
+ # Allow syslog to a terminal
+ term_write_unallocated_ttys(syslogd_t)
+@@ -562,6 +570,10 @@
+ ')
+ 
+ optional_policy(`
++    openshift_read_lib_files(syslogd_t)
++')
++
++optional_policy(`
+ 	postgresql_stream_connect(syslogd_t)
+ ')
+ 
