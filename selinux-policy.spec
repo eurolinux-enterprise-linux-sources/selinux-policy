@@ -20,7 +20,7 @@
 Summary: SELinux policy configuration
 Name: selinux-policy
 Version: 3.7.19
-Release: 307%{?dist}.2
+Release: 307%{?dist}.3
 License: GPLv2+
 Group: System Environment/Base
 Source: serefpolicy-%{version}.tgz
@@ -498,6 +498,10 @@ exit 0
 %endif
 
 %changelog
+* Wed Dec 06 2017 Lukas Vrabec  <lvrabec@redhat.com> 3.7.19-307.3
+- Allow sysadm_t to run puppet_exec_t binaries as puppet_t
+Resolves: rhbz#1522765
+
 * Thu Jun 29 2017 Lukas Vrabec  <lvrabec@redhat.com> 3.7.19-307.2
 - Label /usr/bin/mysqld_safe_helper as mysqld_exec_t instead of bin_t.
 Resolves: rhbz#1466327
