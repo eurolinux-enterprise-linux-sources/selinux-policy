@@ -20,7 +20,7 @@
 Summary: SELinux policy configuration
 Name: selinux-policy
 Version: 3.7.19
-Release: 307%{?dist}
+Release: 307%{?dist}.2
 License: GPLv2+
 Group: System Environment/Base
 Source: serefpolicy-%{version}.tgz
@@ -32,6 +32,7 @@ patch4: policy-RHEL6.6-20140414.patch
 patch5: policy-RHEL6.7-e2506.patch
 patch6: policy-RHEL6.8-58ad9.patch
 patch7: policy-RHEL6.9-9e21f.patch
+patch8: policy-RHEL6.9.z-637b8.patch
 Source1: modules-targeted.conf
 Source2: booleans-targeted.conf
 Source3: Makefile.devel
@@ -223,6 +224,7 @@ Based off of reference policy: Checked out revision  2.20091117
 %patch5 -p1
 %patch6 -p1
 %patch7 -p1
+%patch8 -p1
 %install
 mkdir selinux_config
 for i in %{SOURCE1} %{SOURCE2} %{SOURCE3} %{SOURCE4} %{SOURCE5} %{SOURCE6} %{SOURCE8} %{SOURCE9} %{SOURCE10} %{SOURCE11} %{SOURCE12} %{SOURCE13} %{SOURCE14} %{SOURCE15} %{SOURCE16} %{SOURCE17} %{SOURCE18} %{SOURCE19} %{SOURCE20} %{SOURCE21} %{SOURCE22} %{SOURCE23} %{SOURCE24} %{SOURCE25};do
@@ -496,6 +498,16 @@ exit 0
 %endif
 
 %changelog
+* Thu Jun 29 2017 Lukas Vrabec  <lvrabec@redhat.com> 3.7.19-307.2
+- Label /usr/bin/mysqld_safe_helper as mysqld_exec_t instead of bin_t.
+Resolves: rhbz#1466327
+
+* Thu Jun 22 2017 Lukas Vrabec  <lvrabec@redhat.com> 3.7.19-307.1
+- Allow smbd_t domain generate debugging files under /var/run/gluster. These files are created through the libgfapi.so library that provides integration of a GlusterFS client in the Samba (vfs_glusterfs) process.
+Resolves: rhbz#1462824
+- Disable mysqld_safe_t secure mode environment cleansing.
+Resolves: rhbz#1464145
+
 * Wed Dec 14 2016 Lukas Vrabec  <lvrabec@redhat.com> 3.7.19-307
 - Allow glusterd_t send signals to userdomain. Label new glusterd binaries as glusterd_exec_t
 Resolves: rhbz#1404152
