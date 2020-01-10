@@ -1,0 +1,980 @@
+diff --git a/config/appconfig-mcs/sepgsql_contexts b/config/appconfig-mcs/sepgsql_contexts
+index 009358c..29c2c51 100644
+--- a/config/appconfig-mcs/sepgsql_contexts
++++ b/config/appconfig-mcs/sepgsql_contexts
+@@ -30,7 +30,7 @@ db_tuple	*.pg_catalog.*		system_u:object_r:sepgsql_sysobj_t:s0
+ db_tuple	*.*.*			system_u:object_r:sepgsql_table_t:s0
+ 
+ # <blobs>
+-db_blobs	*.*			system_u:object_r:sepgsql_blob_t:s0
++db_blob	*.*			system_u:object_r:sepgsql_blob_t:s0
+ 
+ # <language>
+ db_language	*.sql			system_u:object_r:sepgsql_safe_lang_t:s0
+diff --git a/config/appconfig-mls/sepgsql_contexts b/config/appconfig-mls/sepgsql_contexts
+index f486af8..4eb6d6c 100644
+--- a/config/appconfig-mls/sepgsql_contexts
++++ b/config/appconfig-mls/sepgsql_contexts
+@@ -30,7 +30,7 @@ db_tuple	*.pg_catalog.*		system_u:object_r:sepgsql_sysobj_t:s0
+ db_tuple	*.*.*			system_u:object_r:sepgsql_table_t:s0
+ 
+ # <blobs>
+-db_blobs	*.*			system_u:object_r:sepgsql_blob_t:s0
++db_blob	*.*			system_u:object_r:sepgsql_blob_t:s0
+ 
+ # <language>
+ db_language	*.sql			system_u:object_r:sepgsql_safe_lang_t:s0
+diff --git a/config/appconfig-standard/sepgsql_contexts b/config/appconfig-standard/sepgsql_contexts
+index 1d1472a..6215c30 100644
+--- a/config/appconfig-standard/sepgsql_contexts
++++ b/config/appconfig-standard/sepgsql_contexts
+@@ -30,7 +30,7 @@ db_tuple	*.pg_catalog.*		system_u:object_r:sepgsql_sysobj_t
+ db_tuple	*.*.*			system_u:object_r:sepgsql_table_t
+ 
+ # <blobs>
+-db_blobs	*.*			system_u:object_r:sepgsql_blob_t
++db_blob	*.*			system_u:object_r:sepgsql_blob_t
+ 
+ # <language>
+ db_language	*.sql			system_u:object_r:sepgsql_safe_lang_t
+diff --git a/policy/modules/admin/alsa.fc b/policy/modules/admin/alsa.fc
+index 30a0ac7..38b775c 100644
+--- a/policy/modules/admin/alsa.fc
++++ b/policy/modules/admin/alsa.fc
+@@ -15,4 +15,9 @@ ifdef(`distro_debian', `
+ /usr/share/alsa/pcm(/.*)?	gen_context(system_u:object_r:alsa_etc_rw_t,s0)
+ ')
+ 
++/var/lock/asound\.state\.lock   --  gen_context(system_u:object_r:alsa_lock_t,s0)
++
+ /var/lib/alsa(/.*)?		gen_context(system_u:object_r:alsa_var_lib_t,s0)
++
++/var/run/alsactl\.pid   --  gen_context(system_u:object_r:alsa_var_run_t,s0)
++
+diff --git a/policy/modules/admin/alsa.te b/policy/modules/admin/alsa.te
+index ccea867..3c54359 100644
+--- a/policy/modules/admin/alsa.te
++++ b/policy/modules/admin/alsa.te
+@@ -17,6 +17,12 @@ files_type(alsa_etc_rw_t)
+ type alsa_var_lib_t;
+ files_var_lib_file(alsa_var_lib_t)
+ 
++type alsa_lock_t;
++files_lock_file(alsa_lock_t)
++
++type alsa_var_run_t;
++files_pid_file(alsa_var_run_t)
++
+ ########################################
+ #
+ # Local policy
+@@ -37,7 +43,15 @@ can_exec(alsa_t, alsa_exec_t)
+ 
+ manage_dirs_pattern(alsa_t, alsa_var_lib_t, alsa_var_lib_t)
+ manage_files_pattern(alsa_t, alsa_var_lib_t, alsa_var_lib_t)
+-files_search_var_lib(alsa_t)
++files_var_lib_filetrans(alsa_t, alsa_var_lib_t, { dir })
++
++manage_files_pattern(alsa_t, alsa_lock_t, alsa_lock_t)
++files_lock_filetrans(alsa_t, alsa_lock_t, file)
++
++manage_files_pattern(alsa_t, alsa_var_run_t, alsa_var_run_t)
++manage_dirs_pattern(alsa_t, alsa_var_run_t, alsa_var_run_t)
++manage_lnk_files_pattern(alsa_t, alsa_var_run_t, alsa_var_run_t)
++files_pid_filetrans(alsa_t, alsa_var_run_t, { file dir })
+ 
+ kernel_read_system_state(alsa_t)
+ 
+diff --git a/policy/modules/admin/logrotate.te b/policy/modules/admin/logrotate.te
+index 1fa5a5b..050e13f 100644
+--- a/policy/modules/admin/logrotate.te
++++ b/policy/modules/admin/logrotate.te
+@@ -194,6 +194,10 @@ optional_policy(`
+ ')
+ 
+ optional_policy(`
++    chronyd_read_keys(logrotate_t)
++')
++
++optional_policy(`
+ 	cups_domtrans(logrotate_t)
+ ')
+ 
+diff --git a/policy/modules/apps/java.if b/policy/modules/apps/java.if
+index 7ecf0e5..3d15954 100644
+--- a/policy/modules/apps/java.if
++++ b/policy/modules/apps/java.if
+@@ -70,6 +70,8 @@ template(`java_role_template',`
+ 	domain_entry_file($1_java_t, java_exec_t)
+ 	role $2 types $1_java_t;
+ 
++    kernel_read_system_state($1_java_t)
++
+ 	domain_interactive_fd($1_java_t)
+ 
+ 	userdom_unpriv_usertype($1, $1_java_t)
+diff --git a/policy/modules/apps/kdumpgui.te b/policy/modules/apps/kdumpgui.te
+index 63ac554..08a1f6b 100644
+--- a/policy/modules/apps/kdumpgui.te
++++ b/policy/modules/apps/kdumpgui.te
+@@ -49,6 +49,7 @@ storage_raw_write_fixed_disk(kdumpgui_t)
+ 
+ dev_dontaudit_getattr_all_chr_files(kdumpgui_t)
+ dev_read_sysfs(kdumpgui_t)
++dev_read_nvme(kdumpgui_t)
+ 
+ # for blkid.tab
+ files_manage_etc_runtime_files(kdumpgui_t)
+diff --git a/policy/modules/kernel/corenetwork.te.in b/policy/modules/kernel/corenetwork.te.in
+index 1a7d9b5..bff6e5f 100644
+--- a/policy/modules/kernel/corenetwork.te.in
++++ b/policy/modules/kernel/corenetwork.te.in
+@@ -162,7 +162,7 @@ network_port(ipsecnat, tcp,4500,s0, udp,4500,s0)
+ network_port(ircd, tcp,6667,s0)
+ network_port(isakmp, udp,500,s0)
+ network_port(iscsi, tcp,3260,s0)
+-network_port(isns, tcp,3205,s0, udp,3205,s0)
++network_port(isns, tcp,3205,s0, udp,3205,s0, tcp,51954,s0)
+ network_port(jabber_client, tcp,5222,s0, tcp,5223,s0)
+ network_port(jabber_interserver, tcp,5269,s0)
+ network_port(jabber_router, tcp,5347,s0)
+@@ -360,6 +360,9 @@ allow corenet_unconfined_type port_type:udp_socket { send_msg recv_msg };
+ allow corenet_unconfined_type port_type:{ tcp_socket udp_socket rawip_socket } name_bind;
+ allow corenet_unconfined_type node_type:{ tcp_socket udp_socket rawip_socket } node_bind;
+ 
++allow netlabel_peer_t netif_t:netif { rawip_recv egress ingress };
++allow netlabel_peer_t node_t:node recvfrom;
++
+ typealias  neutron_port_t alias quantum_port_t;
+ typealias  neutron_server_packet_t alias quantum_server_packet_t;
+ typealias  neutron_client_packet_t alias quantum_client_packet_t;
+diff --git a/policy/modules/kernel/devices.fc b/policy/modules/kernel/devices.fc
+index f07bf7f..b8d29f8 100644
+--- a/policy/modules/kernel/devices.fc
++++ b/policy/modules/kernel/devices.fc
+@@ -82,6 +82,8 @@
+ /dev/noz.* 		-c	gen_context(system_u:object_r:modem_device_t,s0)
+ /dev/null		-c	gen_context(system_u:object_r:null_device_t,s0)
+ /dev/nvidia.*		-c	gen_context(system_u:object_r:xserver_misc_device_t,s0)
++/dev/nvme.*     -c  gen_context(system_u:object_r:nvme_device_t,s0)
++/dev/nvme.*     -b  gen_context(system_u:object_r:nvme_device_t,s0)
+ /dev/nvram		-c	gen_context(system_u:object_r:nvram_device_t,mls_systemhigh)
+ /dev/oldmem		-c	gen_context(system_u:object_r:memory_device_t,mls_systemhigh)
+ /dev/opengl		-c	gen_context(system_u:object_r:xserver_misc_device_t,s0)
+diff --git a/policy/modules/kernel/devices.if b/policy/modules/kernel/devices.if
+index 3353ff9..850ed6a 100644
+--- a/policy/modules/kernel/devices.if
++++ b/policy/modules/kernel/devices.if
+@@ -3172,6 +3172,25 @@ interface(`dev_rw_nvram',`
+ 
+ ########################################
+ ## <summary>
++##	Read Non-Volatile Memory Host Controller Interface.
++## </summary>
++## <param name="domain">
++##	<summary>
++##	Domain allowed access.
++##	</summary>
++## </param>
++#
++interface(`dev_read_nvme',`
++	gen_require(`
++		type nvme_device_t;
++	')
++
++	read_chr_files_pattern($1, device_t, nvme_device_t)
++	read_blk_files_pattern($1, device_t, nvme_device_t)
++')
++
++########################################
++## <summary>
+ ##	Get the attributes of the printer device nodes.
+ ## </summary>
+ ## <param name="domain">
+diff --git a/policy/modules/kernel/devices.te b/policy/modules/kernel/devices.te
+index 96fa734..c882105 100644
+--- a/policy/modules/kernel/devices.te
++++ b/policy/modules/kernel/devices.te
+@@ -181,6 +181,12 @@ type nvram_device_t;
+ dev_node(nvram_device_t)
+ 
+ #
++# Type for /dev/nvme
++#
++type nvme_device_t;
++dev_node(nvme_device_t)
++
++#
+ # Type for /dev/pmu
+ #
+ type power_device_t;
+diff --git a/policy/modules/services/abrt.te b/policy/modules/services/abrt.te
+index e7299c0..94f6d02 100644
+--- a/policy/modules/services/abrt.te
++++ b/policy/modules/services/abrt.te
+@@ -199,6 +199,8 @@ logging_read_generic_logs(abrt_t)
+ miscfiles_read_certs(abrt_t)
+ miscfiles_read_public_files(abrt_t)
+ miscfiles_read_man_pages(abrt_t)
++miscfiles_dontaudit_access_check_cert(abrt_t)
++miscfiles_dontaudit_write_generic_cert(abrt_t)
+ 
+ userdom_dontaudit_read_user_home_content_files(abrt_t)
+ userdom_dontaudit_read_admin_home_files(abrt_t)
+diff --git a/policy/modules/services/apache.te b/policy/modules/services/apache.te
+index b595396..084f022 100644
+--- a/policy/modules/services/apache.te
++++ b/policy/modules/services/apache.te
+@@ -520,7 +520,9 @@ dev_rw_crypto(httpd_t)
+ fs_getattr_all_fs(httpd_t)
+ fs_search_auto_mountpoints(httpd_t)
+ fs_read_iso9660_files(httpd_t)
+-fs_read_anon_inodefs_files(httpd_t)
++fs_rw_anon_inodefs_files(httpd_t)
++fs_list_inotifyfs(httpd_t)
++fs_rw_hugetlbfs_files(httpd_t)
+ 
+ auth_use_nsswitch(httpd_t)
+ 
+diff --git a/policy/modules/services/asterisk.te b/policy/modules/services/asterisk.te
+index 16c0394..d527b2b 100644
+--- a/policy/modules/services/asterisk.te
++++ b/policy/modules/services/asterisk.te
+@@ -116,6 +116,8 @@ corenet_tcp_connect_postgresql_port(asterisk_t)
+ corenet_tcp_connect_snmp_port(asterisk_t)
+ corenet_tcp_connect_sip_port(asterisk_t)
+ corenet_tcp_connect_http_port(asterisk_t)
++corenet_sendrecv_jabber_client_client_packets(asterisk_t)
++corenet_tcp_connect_jabber_client_port(asterisk_t)
+ 
+ dev_rw_generic_usb_dev(asterisk_t)
+ dev_read_sysfs(asterisk_t)
+diff --git a/policy/modules/services/bacula.te b/policy/modules/services/bacula.te
+index 176de16..1c3a174 100644
+--- a/policy/modules/services/bacula.te
++++ b/policy/modules/services/bacula.te
+@@ -62,7 +62,7 @@ application_executable_file(bacula_unconfined_script_exec_t)
+ #
+ 
+ allow bacula_t self:capability { dac_read_search dac_override chown fowner fsetid setgid setuid};
+-allow bacula_t self:process signal;
++allow bacula_t self:process { signal signull };
+ allow bacula_t self:fifo_file rw_fifo_file_perms;
+ allow bacula_t self:tcp_socket { accept listen };
+ 
+diff --git a/policy/modules/services/cobbler.te b/policy/modules/services/cobbler.te
+index 63160ef..b42d91c 100644
+--- a/policy/modules/services/cobbler.te
++++ b/policy/modules/services/cobbler.te
+@@ -244,6 +244,7 @@ optional_policy(`
+ 	# Cobbler also creates other directories in /var/lib/tftpdir (etc, s390x, ppc, pxelinux.cfg)
+ 	# are any of those hard linked?
+ 	tftp_filetrans_tftpdir(cobblerd_t, cobbler_var_lib_t, { dir file })
++    tftp_delete_content_dirs(cobblerd_t)
+ ')
+ 
+ ########################################
+diff --git a/policy/modules/services/conman.fc b/policy/modules/services/conman.fc
+index 6bd92ce..ecca526 100644
+--- a/policy/modules/services/conman.fc
++++ b/policy/modules/services/conman.fc
+@@ -2,6 +2,8 @@
+ 
+ /usr/sbin/conmand		--	gen_context(system_u:object_r:conman_exec_t,s0)
+ 
++/usr/share/conman/exec(/.*)?           gen_context(system_u:object_r:conman_unconfined_script_exec_t,s0)
++
+ /var/log/conman(/.*)?			gen_context(system_u:object_r:conman_log_t,s0)
+ /var/log/conman\.old(/.*)?		gen_context(system_u:object_r:conman_log_t,s0)
+ 
+diff --git a/policy/modules/services/conman.te b/policy/modules/services/conman.te
+index df7a033..2cddc47 100644
+--- a/policy/modules/services/conman.te
++++ b/policy/modules/services/conman.te
+@@ -33,6 +33,8 @@ allow conman_t self:fifo_file rw_fifo_file_perms;
+ allow conman_t self:unix_stream_socket create_stream_socket_perms;
+ allow conman_t self:tcp_socket { accept listen create_socket_perms };
+ 
++allow conman_t conman_unconfined_script_exec_t:dir list_dir_perms;
++
+ manage_dirs_pattern(conman_t, conman_log_t, conman_log_t)
+ manage_files_pattern(conman_t, conman_log_t, conman_log_t)
+ logging_log_filetrans(conman_t, conman_log_t, { dir })
+diff --git a/policy/modules/services/consolekit.te b/policy/modules/services/consolekit.te
+index 807c4c1..348f558 100644
+--- a/policy/modules/services/consolekit.te
++++ b/policy/modules/services/consolekit.te
+@@ -30,8 +30,9 @@ allow consolekit_t self:fifo_file rw_fifo_file_perms;
+ allow consolekit_t self:unix_stream_socket create_stream_socket_perms;
+ allow consolekit_t self:unix_dgram_socket create_socket_perms;
+ 
++manage_dirs_pattern(consolekit_t, consolekit_log_t, consolekit_log_t)
+ manage_files_pattern(consolekit_t, consolekit_log_t, consolekit_log_t)
+-logging_log_filetrans(consolekit_t, consolekit_log_t, file)
++logging_log_filetrans(consolekit_t, consolekit_log_t, { dir file })
+ 
+ manage_dirs_pattern(consolekit_t, consolekit_var_run_t, consolekit_var_run_t)
+ manage_files_pattern(consolekit_t, consolekit_var_run_t, consolekit_var_run_t)
+diff --git a/policy/modules/services/dovecot.te b/policy/modules/services/dovecot.te
+index bdabde5..2804f8c 100644
+--- a/policy/modules/services/dovecot.te
++++ b/policy/modules/services/dovecot.te
+@@ -71,6 +71,8 @@ allow dovecot_t self:unix_stream_socket { create_stream_socket_perms connectto }
+ domtrans_pattern(dovecot_t, dovecot_auth_exec_t, dovecot_auth_t)
+ allow dovecot_t dovecot_auth_t:process signal;
+ 
++allow dovecot_t dovecot_deliver_t:process signull;
++
+ allow dovecot_t dovecot_cert_t:dir list_dir_perms;
+ read_files_pattern(dovecot_t, dovecot_cert_t, dovecot_cert_t)
+ read_lnk_files_pattern(dovecot_t, dovecot_cert_t, dovecot_cert_t)
+diff --git a/policy/modules/services/fail2ban.te b/policy/modules/services/fail2ban.te
+index c1fdedc..6352778 100644
+--- a/policy/modules/services/fail2ban.te
++++ b/policy/modules/services/fail2ban.te
+@@ -116,3 +116,8 @@ optional_policy(`
+ optional_policy(`
+ 	iptables_domtrans(fail2ban_t)
+ ')
++
++optional_policy(`
++    shorewall_domtrans(fail2ban_t)
++')
++
+diff --git a/policy/modules/services/freeipmi.te b/policy/modules/services/freeipmi.te
+index 44eacb4..ab1067a 100644
+--- a/policy/modules/services/freeipmi.te
++++ b/policy/modules/services/freeipmi.te
+@@ -54,6 +54,10 @@ files_pid_filetrans(freeipmi_bmc_watchdog_t, freeipmi_bmc_watchdog_var_run_t, fi
+ 
+ allow freeipmi_bmc_watchdog_t freeipmi_ipmiseld_t:sem rw_sem_perms;
+ 
++optional_policy(`
++    files_dontaudit_rw_inherited_locks(freeipmi_bmc_watchdog_t)
++')
++
+ #######################################
+ #
+ # ipmidetectd local policy
+diff --git a/policy/modules/services/ftp.te b/policy/modules/services/ftp.te
+index 8413416..bcdc108 100644
+--- a/policy/modules/services/ftp.te
++++ b/policy/modules/services/ftp.te
+@@ -266,7 +266,7 @@ tunable_policy(`ftp_home_dir',`
+     #userdom_tmp_filetrans_user_tmp(ftpd_t, { dir file })
+ ')
+ 
+-tunable_policy(`ftp_home_dir && use_nfs_home_dirs',`
++tunable_policy(`ftp_home_dir && use_nfs_home_dirs && allow_ftpd_use_nfs',`
+ 	fs_manage_nfs_files(ftpd_t)
+ 	fs_read_nfs_symlinks(ftpd_t)
+ ')
+@@ -360,7 +360,7 @@ stream_connect_pattern(ftpdctl_t, ftpd_var_run_t, ftpd_var_run_t, ftpd_t)
+ 
+ # ftpdctl creates a socket so that the daemon can perform
+ # access control decisions (see comments in ftpd_t rules above)
+-allow ftpdctl_t ftpdctl_tmp_t:sock_file { create setattr };
++allow ftpdctl_t ftpdctl_tmp_t:sock_file manage_sock_file_perms;
+ files_tmp_filetrans(ftpdctl_t, ftpdctl_tmp_t, sock_file)
+ 
+ # Allow ftpdctl to read config files
+diff --git a/policy/modules/services/glusterd.fc b/policy/modules/services/glusterd.fc
+index 735bd28..9399553 100644
+--- a/policy/modules/services/glusterd.fc
++++ b/policy/modules/services/glusterd.fc
+@@ -6,6 +6,12 @@
+ /usr/sbin/glusterd	--	gen_context(system_u:object_r:glusterd_initrc_exec_t,s0)
+ /usr/sbin/glusterfsd	--	gen_context(system_u:object_r:glusterd_exec_t,s0)
+ 
++/usr/sbin/glustereventsd   --  gen_context(system_u:object_r:glusterd_exec_t,s0)
++/usr/sbin/gluster-eventsapi   --       gen_context(system_u:object_r:glusterd_exec_t,s0)
++
++/usr/libexec/glusterfs/peer_eventsapi.py    --         gen_context(system_u:object_r:glusterd_exec_t,s0)
++/usr/libexec/glusterfs/events/glustereventsd.py   --   gen_context(system_u:object_r:glusterd_exec_t,s0)
++
+ /opt/glusterfs/[^/]+/sbin/glusterfsd	--	gen_context(system_u:object_r:glusterd_exec_t,s0)
+ 
+ /var/lib/glusterd(/.*)?		gen_context(system_u:object_r:glusterd_var_lib_t,s0)
+diff --git a/policy/modules/services/glusterd.te b/policy/modules/services/glusterd.te
+index 4aa6cac..4b815d6 100644
+--- a/policy/modules/services/glusterd.te
++++ b/policy/modules/services/glusterd.te
+@@ -60,7 +60,7 @@ files_type(glusterd_brick_t)
+ # Local policy
+ #
+ 
+-allow glusterd_t self:capability { sys_admin sys_resource sys_ptrace dac_override chown dac_read_search fowner fsetid kill setgid setuid net_admin mknod net_raw };
++allow glusterd_t self:capability { sys_admin sys_resource sys_ptrace dac_override chown dac_read_search fowner fsetid kill setgid setuid net_admin mknod net_raw ipc_lock };
+ 
+ allow glusterd_t self:process { getcap setcap setrlimit signal_perms setsched getsched };
+ allow glusterd_t self:sem create_sem_perms;
+@@ -98,6 +98,7 @@ relabel_files_pattern(glusterd_t, glusterd_var_lib_t, glusterd_var_lib_t)
+ 
+ manage_dirs_pattern(glusterd_t, glusterd_brick_t, glusterd_brick_t)
+ manage_files_pattern(glusterd_t, glusterd_brick_t, glusterd_brick_t)
++manage_sock_files_pattern(glusterd_t, glusterd_brick_t, glusterd_brick_t)
+ manage_fifo_files_pattern(glusterd_t, glusterd_brick_t, glusterd_brick_t)
+ manage_lnk_files_pattern(glusterd_t, glusterd_brick_t, glusterd_brick_t)
+ manage_blk_files_pattern(glusterd_t, glusterd_brick_t, glusterd_brick_t)
+@@ -195,6 +196,7 @@ userdom_read_user_tmp_files(glusterd_t)
+ userdom_delete_user_tmpfs_files(glusterd_t)
+ userdom_rw_user_tmpfs_files(glusterd_t)
+ userdom_kill_all_users(glusterd_t)
++userdom_signal_unpriv_users(glusterd_t)
+ 
+ mount_domtrans(glusterd_t)
+ 
+diff --git a/policy/modules/services/hal.te b/policy/modules/services/hal.te
+index 3ca9978..b4d568b 100644
+--- a/policy/modules/services/hal.te
++++ b/policy/modules/services/hal.te
+@@ -138,6 +138,7 @@ dev_read_raw_memory(hald_t)
+ # hal is now execing pm-suspend
+ dev_rw_sysfs(hald_t)
+ dev_read_video_dev(hald_t)
++dev_read_nvme(hald_t)
+ 
+ domain_use_interactive_fds(hald_t)
+ domain_read_all_domains_state(hald_t)
+diff --git a/policy/modules/services/hypervkvp.te b/policy/modules/services/hypervkvp.te
+index ad7d132..b54a1d2 100644
+--- a/policy/modules/services/hypervkvp.te
++++ b/policy/modules/services/hypervkvp.te
+@@ -115,6 +115,8 @@ optional_policy(`
+ 
+ allow hypervvssd_t self:capability sys_admin;
+ 
++auth_read_all_dirs_except_shadow(hypervvssd_t)
++
+ files_list_boot(hypervvssd_t)
+ files_write_boot_dirs(hypervvssd_t)
+ 
+diff --git a/policy/modules/services/isns.te b/policy/modules/services/isns.te
+index 6983e01..ea05716 100644
+--- a/policy/modules/services/isns.te
++++ b/policy/modules/services/isns.te
+@@ -26,7 +26,7 @@ files_pid_file(isnsd_var_run_t)
+ allow isnsd_t self:capability kill;
+ allow isnsd_t self:process signal;
+ allow isnsd_t self:fifo_file rw_fifo_file_perms;
+-allow isnsd_t self:tcp_socket { listen };
++allow isnsd_t self:tcp_socket { listen accept };
+ allow isnsd_t self:udp_socket { accept listen };
+ allow isnsd_t self:unix_stream_socket { accept listen };
+ 
+@@ -46,6 +46,7 @@ corenet_tcp_sendrecv_isns_port(isnsd_t)
+ corenet_tcp_bind_generic_node(isnsd_t)
+ corenet_sendrecv_isns_server_packets(isnsd_t)
+ corenet_tcp_bind_isns_port(isnsd_t)
++corenet_tcp_connect_isns_port(isnsd_t)
+ 
+ auth_use_nsswitch(isnsd_t)
+ 
+diff --git a/policy/modules/services/kerberos.te b/policy/modules/services/kerberos.te
+index 155067c..12bffe5 100644
+--- a/policy/modules/services/kerberos.te
++++ b/policy/modules/services/kerberos.te
+@@ -339,6 +339,8 @@ manage_dirs_pattern(kpropd_t, krb5kdc_tmp_t, krb5kdc_tmp_t)
+ manage_files_pattern(kpropd_t, krb5kdc_tmp_t, krb5kdc_tmp_t)
+ files_tmp_filetrans(kpropd_t, krb5kdc_tmp_t, { file dir })
+ 
++auth_use_nsswitch(kpropd_t)
++
+ corecmd_exec_bin(kpropd_t)
+ 
+ corenet_all_recvfrom_unlabeled(kpropd_t)
+diff --git a/policy/modules/services/lsm.te b/policy/modules/services/lsm.te
+index bd7759a..67078f5 100644
+--- a/policy/modules/services/lsm.te
++++ b/policy/modules/services/lsm.te
+@@ -52,6 +52,8 @@ auth_use_nsswitch(lsmd_t)
+ 
+ logging_send_syslog_msg(lsmd_t)
+ 
++miscfiles_read_localization(lsmd_t)
++
+ ########################################
+ #
+ # Local lsmd plugin policy
+@@ -91,6 +93,8 @@ auth_use_nsswitch(lsmd_plugin_t)
+ 
+ init_stream_connect(lsmd_plugin_t)
+ 
++libs_exec_ldconfig(lsmd_plugin_t)
++
+ logging_send_syslog_msg(lsmd_plugin_t)
+ 
+ miscfiles_read_localization(lsmd_plugin_t)
+diff --git a/policy/modules/services/mysql.fc b/policy/modules/services/mysql.fc
+index 4b14da5..ee0ec25 100644
+--- a/policy/modules/services/mysql.fc
++++ b/policy/modules/services/mysql.fc
+@@ -22,7 +22,7 @@
+ #
+ # /var
+ #
+-/var/lib/mysql(/.*)?		gen_context(system_u:object_r:mysqld_db_t,s0)
++/var/lib/mysql(-files|-keyring)?(/.*)?		gen_context(system_u:object_r:mysqld_db_t,s0)
+ /var/lib/mysql/mysql\.sock -s	gen_context(system_u:object_r:mysqld_var_run_t,s0)
+ 
+ /var/log/mariadb(/.*)?  gen_context(system_u:object_r:mysqld_log_t,s0)
+diff --git a/policy/modules/services/pegasus.te b/policy/modules/services/pegasus.te
+index 9b28067..f826d2d 100644
+--- a/policy/modules/services/pegasus.te
++++ b/policy/modules/services/pegasus.te
+@@ -30,7 +30,7 @@ files_pid_file(pegasus_var_run_t)
+ # Local policy
+ #
+ 
+-allow pegasus_t self:capability { chown ipc_lock kill sys_nice setuid setgid dac_override net_admin net_bind_service };
++allow pegasus_t self:capability { chown ipc_lock kill sys_nice setuid setgid dac_override net_admin net_bind_service sys_admin sys_ptrace };
+ dontaudit pegasus_t self:capability sys_tty_config;
+ allow pegasus_t self:process signal;
+ allow pegasus_t self:fifo_file rw_fifo_file_perms;
+@@ -63,11 +63,8 @@ manage_files_pattern(pegasus_t, pegasus_var_run_t, pegasus_var_run_t)
+ files_pid_filetrans(pegasus_t, pegasus_var_run_t, { dir file })
+ 
+ kernel_read_network_state(pegasus_t)
+-kernel_read_kernel_sysctls(pegasus_t)
+-kernel_read_fs_sysctls(pegasus_t)
++kernel_read_all_sysctls(pegasus_t)
+ kernel_read_system_state(pegasus_t)
+-kernel_search_vm_sysctl(pegasus_t)
+-kernel_read_net_sysctls(pegasus_t)
+ kernel_read_xen_state(pegasus_t)
+ kernel_write_xen_state(pegasus_t)
+ 
+@@ -93,6 +90,7 @@ corecmd_exec_shell(pegasus_t)
+ 
+ dev_rw_sysfs(pegasus_t)
+ dev_read_urand(pegasus_t)
++dev_read_raw_memory(pegasus_t)
+ 
+ fs_getattr_all_fs(pegasus_t)
+ fs_search_auto_mountpoints(pegasus_t)
+@@ -143,7 +141,7 @@ optional_policy(`
+ ')
+ 
+ optional_policy(`
+-	rpm_exec(pegasus_t)
++	rpm_domtrans(pegasus_t)
+ ')
+ 
+ optional_policy(`
+diff --git a/policy/modules/services/puppet.fc b/policy/modules/services/puppet.fc
+index 2f1e529..7d34586 100644
+--- a/policy/modules/services/puppet.fc
++++ b/policy/modules/services/puppet.fc
+@@ -1,4 +1,5 @@
+ /etc/puppet(/.*)?			gen_context(system_u:object_r:puppet_etc_t,s0)
++/etc/puppetlabs(/.*)?       gen_context(system_u:object_r:puppet_etc_t,s0)
+ 
+ /etc/rc\.d/init\.d/puppet	--	gen_context(system_u:object_r:puppet_initrc_exec_t,s0)
+ /etc/rc\.d/init\.d/puppetmaster --	gen_context(system_u:object_r:puppetmaster_initrc_exec_t,s0)
+@@ -6,6 +7,10 @@
+ /usr/sbin/puppetd		--	gen_context(system_u:object_r:puppet_exec_t,s0)
+ /usr/sbin/puppetmasterd		--	gen_context(system_u:object_r:puppetmaster_exec_t,s0)
+ 
++/usr/bin/puppet	        --	gen_context(system_u:object_r:puppet_exec_t,s0)
++/usr/bin/puppetd	        --	gen_context(system_u:object_r:puppet_exec_t,s0)
++/usr/bin/puppetmasterd	    --	gen_context(system_u:object_r:puppetmaster_exec_t,s0)
++
+ /var/lib/puppet(/.*)?			gen_context(system_u:object_r:puppet_var_lib_t,s0)
+ /var/log/puppet(/.*)?			gen_context(system_u:object_r:puppet_log_t,s0)
+ /var/run/puppet(/.*)?			gen_context(system_u:object_r:puppet_var_run_t,s0)
+diff --git a/policy/modules/services/rhcs.fc b/policy/modules/services/rhcs.fc
+index 0fa1532..415fdfe 100644
+--- a/policy/modules/services/rhcs.fc
++++ b/policy/modules/services/rhcs.fc
+@@ -59,6 +59,7 @@
+ /var/lib(64)?/openais(/.*)?              gen_context(system_u:object_r:cluster_var_lib_t,s0)
+ /var/lib(64)?/pacemaker(/.*)?            gen_context(system_u:object_r:cluster_var_lib_t,s0)
+ /var/lib(64)?/pengine(/.*)?              gen_context(system_u:object_r:cluster_var_lib_t,s0)
++/var/lib(64)?/pcsd(/.*)?              gen_context(system_u:object_r:cluster_var_lib_t,s0)
+ 
+ /var/run/aisexec.*                  gen_context(system_u:object_r:cluster_var_run_t,s0)
+ /var/run/cman_.*                    -s  gen_context(system_u:object_r:cluster_var_run_t,s0)
+diff --git a/policy/modules/services/roundup.fc b/policy/modules/services/roundup.fc
+index e4110e6..7491d31 100644
+--- a/policy/modules/services/roundup.fc
++++ b/policy/modules/services/roundup.fc
+@@ -8,4 +8,4 @@
+ #
+ # /var
+ #
+-/var/lib/roundup(/.*)?	--	gen_context(system_u:object_r:roundup_var_lib_t,s0)
++/var/lib/roundup(/.*)?		gen_context(system_u:object_r:roundup_var_lib_t,s0)
+diff --git a/policy/modules/services/roundup.te b/policy/modules/services/roundup.te
+index 094518b..b4e559e 100644
+--- a/policy/modules/services/roundup.te
++++ b/policy/modules/services/roundup.te
+@@ -30,6 +30,7 @@ allow roundup_t self:process signal_perms;
+ allow roundup_t self:unix_stream_socket create_stream_socket_perms;
+ allow roundup_t self:tcp_socket create_stream_socket_perms;
+ allow roundup_t self:udp_socket create_socket_perms;
++allow roundup_t self:netlink_route_socket { create_netlink_socket_perms nlmsg_read };
+ 
+ manage_files_pattern(roundup_t, roundup_var_lib_t, roundup_var_lib_t)
+ files_var_lib_filetrans(roundup_t, roundup_var_lib_t, file)
+@@ -40,6 +41,9 @@ files_pid_filetrans(roundup_t, roundup_var_run_t, file)
+ kernel_read_kernel_sysctls(roundup_t)
+ kernel_list_proc(roundup_t)
+ kernel_read_proc_symlinks(roundup_t)
++kernel_read_system_state(roundup_t)
++
++auth_use_nsswitch(roundup_t)
+ 
+ dev_read_sysfs(roundup_t)
+ 
+@@ -84,6 +88,10 @@ userdom_dontaudit_use_unpriv_user_fds(roundup_t)
+ userdom_dontaudit_search_user_home_dirs(roundup_t)
+ 
+ optional_policy(`
++	apache_search_config(roundup_t)
++')
++
++optional_policy(`
+ 	mysql_stream_connect(roundup_t)
+ 	mysql_search_db(roundup_t)
+ ')
+diff --git a/policy/modules/services/samba.if b/policy/modules/services/samba.if
+index d40d230..f7ef306 100644
+--- a/policy/modules/services/samba.if
++++ b/policy/modules/services/samba.if
+@@ -463,6 +463,27 @@ interface(`samba_manage_var_files',`
+ 
+ ########################################
+ ## <summary>
++##	Allow the specified domain to
++##	read and write samba /var directories.
++## </summary>
++## <param name="domain">
++##	<summary>
++##	Domain allowed access.
++##	</summary>
++## </param>
++#
++interface(`samba_manage_var_dirs',`
++	gen_require(`
++		type samba_var_t;
++	')
++
++	files_search_var_lib($1)
++	files_search_var_lib($1)
++	manage_dirs_pattern($1, samba_var_t, samba_var_t)
++')
++
++########################################
++## <summary>
+ ##	Execute a domain transition to run smbcontrol.
+ ## </summary>
+ ## <param name="domain">
+diff --git a/policy/modules/services/samba.te b/policy/modules/services/samba.te
+index 39b7362..424e9a1 100644
+--- a/policy/modules/services/samba.te
++++ b/policy/modules/services/samba.te
+@@ -906,9 +906,9 @@ optional_policy(`
+ # Winbind local policy
+ #
+ 
+-allow winbind_t self:capability { sys_nice dac_override ipc_lock setuid };
++allow winbind_t self:capability { sys_nice dac_override ipc_lock setgid setuid };
+ dontaudit winbind_t self:capability sys_tty_config;
+-allow winbind_t self:process { signal_perms getsched setsched };
++allow winbind_t self:process { signal_perms getsched setsched getcap };
+ allow winbind_t self:fifo_file rw_fifo_file_perms;
+ allow winbind_t self:unix_dgram_socket create_socket_perms;
+ allow winbind_t self:unix_stream_socket create_stream_socket_perms;
+diff --git a/policy/modules/services/sblim.te b/policy/modules/services/sblim.te
+index 79fd7ea..47e8f7c 100644
+--- a/policy/modules/services/sblim.te
++++ b/policy/modules/services/sblim.te
+@@ -146,6 +146,8 @@ corenet_tcp_bind_repository_port(sblim_reposd_t)
+ 
+ logging_send_syslog_msg(sblim_reposd_t)
+ 
++miscfiles_read_certs(sblim_reposd_t)
++
+ #######################################
+ #
+ # Sfcbd local policy
+diff --git a/policy/modules/services/ssh.te b/policy/modules/services/ssh.te
+index 5e52161..d9278bb 100644
+--- a/policy/modules/services/ssh.te
++++ b/policy/modules/services/ssh.te
+@@ -63,6 +63,7 @@ ssh_server_template(sshd)
+ init_daemon_domain(sshd_t, sshd_exec_t)
+ mls_trusted_object(sshd_t)
+ mls_process_write_all_levels(sshd_t)
++mcs_process_set_categories(sshd_t)
+ 
+ type sshd_initrc_exec_t;
+ init_script_file(sshd_initrc_exec_t)
+diff --git a/policy/modules/services/sssd.te b/policy/modules/services/sssd.te
+index 6308971..c817161 100644
+--- a/policy/modules/services/sssd.te
++++ b/policy/modules/services/sssd.te
+@@ -135,6 +135,11 @@ optional_policy(`
+ 	ldap_stream_connect(sssd_t)
+ ')
+ 
++optional_policy(`
++    samba_manage_var_dirs(sssd_t)
++    samba_manage_var_files(sssd_t)
++')
++
+ tunable_policy(`use_nfs_home_dirs',`
+        fs_read_nfs_files(sssd_t)
+ ')
+diff --git a/policy/modules/services/tftp.if b/policy/modules/services/tftp.if
+index 73883a9..be7fb1c 100644
+--- a/policy/modules/services/tftp.if
++++ b/policy/modules/services/tftp.if
+@@ -25,6 +25,25 @@ interface(`tftp_read_content',`
+ 
+ ########################################
+ ## <summary>
++##	Manage tftp /var/lib files.
++## </summary>
++## <param name="domain">
++##	<summary>
++##	Domain allowed access.
++##	</summary>
++## </param>
++#
++interface(`tftp_delete_content_dirs',`
++	gen_require(`
++		type tftpdir_rw_t;
++	')
++
++	files_search_var_lib($1)
++	delete_dirs_pattern($1, tftpdir_rw_t, tftpdir_rw_t)
++')
++
++########################################
++## <summary>
+ ##	Search tftp /var/lib directories.
+ ## </summary>
+ ## <param name="domain">
+diff --git a/policy/modules/services/virt.te b/policy/modules/services/virt.te
+index b9e839c..ae8b85c 100644
+--- a/policy/modules/services/virt.te
++++ b/policy/modules/services/virt.te
+@@ -69,6 +69,10 @@ gen_tunable(virt_use_usb, true)
+ ## </desc>
+ gen_tunable(virt_use_execmem, false)
+ 
++gen_require(`
++    class passwd passwd;
++')
++
+ virt_domain_template(svirt)
+ role system_r types svirt_t;
+ 
+@@ -749,6 +753,8 @@ userdom_use_inherited_user_ptys(virt_bridgehelper_t)
+ 
+ allow virt_qemu_ga_t self:capability { sys_admin sys_time sys_tty_config };
+ 
++allow virt_qemu_ga_t self:passwd passwd;
++
+ allow virt_qemu_ga_t self:fifo_file rw_fifo_file_perms;
+ allow virt_qemu_ga_t self:unix_stream_socket create_stream_socket_perms;
+ 
+diff --git a/policy/modules/system/authlogin.te b/policy/modules/system/authlogin.te
+index 67da55d..43d18c1 100644
+--- a/policy/modules/system/authlogin.te
++++ b/policy/modules/system/authlogin.te
+@@ -19,7 +19,13 @@ gen_tunable(authlogin_radius, false)
+ ## </p>
+ ## </desc>
+ gen_tunable(authlogin_shadow, false)
+- 
++
++## <desc>
++## <p>
++## Allow users to login using a yubikey OTP server or challenge response mode
++## </p>
++## </desc>
++gen_tunable(authlogin_yubikey, false)
+ 
+ attribute can_read_shadow_passwords;
+ attribute can_write_shadow_passwords;
+@@ -431,6 +437,18 @@ optional_policy(`
+     ')
+ ')
+ 
++
++########################################
++#
++# login_pgm local policy
++#
++
++tunable_policy(`authlogin_yubikey',`
++	corenet_tcp_connect_http_port(login_pgm)
++    ssh_signull(local_login_t)
++')
++
++
+ #######################################
+ #
+ # Login Program local policy
+diff --git a/policy/modules/system/hostname.te b/policy/modules/system/hostname.te
+index c5be164..60ffabf 100644
+--- a/policy/modules/system/hostname.te
++++ b/policy/modules/system/hostname.te
+@@ -63,6 +63,10 @@ optional_policy(`
+ ')
+ 
+ optional_policy(`
++    rhcs_manage_cluster_tmp_files(hostname_t)
++')
++
++optional_policy(`
+ 	xen_append_log(hostname_t)
+ 	xen_dontaudit_use_fds(hostname_t)
+ ')
+diff --git a/policy/modules/system/ipsec.te b/policy/modules/system/ipsec.te
+index 6798603..788c571 100644
+--- a/policy/modules/system/ipsec.te
++++ b/policy/modules/system/ipsec.te
+@@ -272,6 +272,8 @@ kernel_request_load_module(ipsec_mgmt_t)
+ kernel_getattr_core_if(ipsec_mgmt_t)
+ kernel_getattr_message_if(ipsec_mgmt_t)
+ 
++auth_use_nsswitch(ipsec_mgmt_t)
++
+ files_read_kernel_symbol_table(ipsec_mgmt_t)
+ files_getattr_kernel_modules(ipsec_mgmt_t)
+ files_list_kernel_modules(ipsec_mgmt_t)
+diff --git a/policy/modules/system/kdump.fc b/policy/modules/system/kdump.fc
+index c66934f..e11a17e 100644
+--- a/policy/modules/system/kdump.fc
++++ b/policy/modules/system/kdump.fc
+@@ -3,3 +3,5 @@
+ 
+ /sbin/kdump		--	gen_context(system_u:object_r:kdump_exec_t,s0)
+ /sbin/kexec		--	gen_context(system_u:object_r:kdump_exec_t,s0)
++
++/var/lock/kdump(/.*)?   gen_context(system_u:object_r:kdump_lock_t,s0)
+diff --git a/policy/modules/system/kdump.te b/policy/modules/system/kdump.te
+index dfbce6b..0c599f7 100644
+--- a/policy/modules/system/kdump.te
++++ b/policy/modules/system/kdump.te
+@@ -16,6 +16,9 @@ files_config_file(kdump_etc_t)
+ type kdump_initrc_exec_t;
+ init_script_file(kdump_initrc_exec_t)
+ 
++type kdump_lock_t;
++files_lock_file(kdump_lock_t)
++
+ #####################################
+ #
+ # kdump local policy
+@@ -25,6 +28,11 @@ allow kdump_t self:capability { sys_boot dac_override };
+ 
+ read_files_pattern(kdump_t, kdump_etc_t, kdump_etc_t)
+ 
++manage_dirs_pattern(kdump_t, kdump_lock_t, kdump_lock_t)
++manage_files_pattern(kdump_t, kdump_lock_t, kdump_lock_t)
++manage_lnk_files_pattern(kdump_t, kdump_lock_t, kdump_lock_t)
++files_lock_filetrans(kdump_t, kdump_lock_t, { dir file lnk_file })
++
+ files_read_etc_runtime_files(kdump_t)
+ files_read_kernel_img(kdump_t)
+ 
+diff --git a/policy/modules/system/logging.te b/policy/modules/system/logging.te
+index 93d40f7..08bb7c7 100644
+--- a/policy/modules/system/logging.te
++++ b/policy/modules/system/logging.te
+@@ -143,6 +143,8 @@ kernel_setsched(auditctl_t)
+ domain_read_all_domains_state(auditctl_t)
+ domain_use_interactive_fds(auditctl_t)
+ 
++miscfiles_read_localization(auditctl_t)
++
+ mls_file_read_all_levels(auditctl_t)
+ 
+ storage_getattr_removable_dev(auditctl_t)
+diff --git a/policy/modules/system/miscfiles.if b/policy/modules/system/miscfiles.if
+index 51aa437..4b6ee22 100644
+--- a/policy/modules/system/miscfiles.if
++++ b/policy/modules/system/miscfiles.if
+@@ -723,3 +723,41 @@ interface(`miscfiles_manage_localization',`
+ 	manage_lnk_files_pattern($1, locale_t, locale_t)
+ ')
+ 
++########################################
++## <summary>
++##	Dontaudit attempts to write generic SSL certificates.
++## </summary>
++## <param name="domain">
++##	<summary>
++##	Domain allowed access.
++##	</summary>
++## </param>
++#
++interface(`miscfiles_dontaudit_write_generic_cert',`
++	gen_require(`
++		type cert_t;
++	')
++
++	dontaudit $1 cert_t:file write;
++	dontaudit $1 cert_t:dir write;
++')
++
++########################################
++## <summary>
++##	Do not audit attempts to access check cert dirs/files.
++## </summary>
++## <param name="domain">
++##	<summary>
++##	Domain to not audit.
++##	</summary>
++## </param>
++#
++interface(`miscfiles_dontaudit_access_check_cert',`
++	gen_require(`
++		type cert_t;
++	')
++
++	dontaudit $1 cert_t:file audit_access;
++    dontaudit $1 cert_t:dir audit_access;
++')
++
+diff --git a/policy/modules/system/mount.te b/policy/modules/system/mount.te
+index 2288ec0..60e62ab 100644
+--- a/policy/modules/system/mount.te
++++ b/policy/modules/system/mount.te
+@@ -97,6 +97,7 @@ dev_list_all_dev_nodes(mount_t)
+ dev_read_usbfs(mount_t)
+ dev_read_rand(mount_t)
+ dev_read_sysfs(mount_t)
++dev_read_nvme(mount_t)
+ dev_rw_lvm_control(mount_t)
+ dev_dontaudit_getattr_all_chr_files(mount_t)
+ dev_dontaudit_getattr_memory_dev(mount_t)
+diff --git a/policy/modules/system/raid.te b/policy/modules/system/raid.te
+index a8b6e25..11f7f76 100644
+--- a/policy/modules/system/raid.te
++++ b/policy/modules/system/raid.te
+@@ -53,6 +53,7 @@ dev_dontaudit_getattr_generic_files(mdadm_t)
+ dev_dontaudit_getattr_generic_chr_files(mdadm_t)
+ dev_dontaudit_getattr_generic_blk_files(mdadm_t)
+ dev_read_realtime_clock(mdadm_t)
++dev_read_nvme(mdadm_t)
+ # unfortunately needed for DMI decoding:
+ dev_read_raw_memory(mdadm_t)
+ 
+diff --git a/policy/modules/system/userdomain.if b/policy/modules/system/userdomain.if
+index 1ab0b72..7751614 100644
+--- a/policy/modules/system/userdomain.if
++++ b/policy/modules/system/userdomain.if
+@@ -844,7 +844,7 @@ template(`userdom_login_user_template', `
+ 	# User domain Local policy
+ 	#
+ 
+-	allow $1_t self:capability { setuid setgid chown fowner };
++	allow $1_t self:capability { chown fowner };
+ 	allow $1_t self:process setcurrent;
+ 	domain_dyntrans_type($1_t)
+ 	dontaudit $1_t self:capability { sys_nice fsetid };

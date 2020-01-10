@@ -20,7 +20,7 @@
 Summary: SELinux policy configuration
 Name: selinux-policy
 Version: 3.7.19
-Release: 292%{?dist}.3
+Release: 307%{?dist}
 License: GPLv2+
 Group: System Environment/Base
 Source: serefpolicy-%{version}.tgz
@@ -31,7 +31,7 @@ patch3: policy-RHEL6.6.patch
 patch4: policy-RHEL6.6-20140414.patch
 patch5: policy-RHEL6.7-e2506.patch
 patch6: policy-RHEL6.8-58ad9.patch
-patch7: policy-RHEL6.8.z-9e21f.patch
+patch7: policy-RHEL6.9-9e21f.patch
 Source1: modules-targeted.conf
 Source2: booleans-targeted.conf
 Source3: Makefile.devel
@@ -496,20 +496,148 @@ exit 0
 %endif
 
 %changelog
-* Wed Jan 04 2017 Lukas Vrabec  <lvrabec@redhat.com> 3.7.19-292.3
+* Wed Dec 14 2016 Lukas Vrabec  <lvrabec@redhat.com> 3.7.19-307
 - Allow glusterd_t send signals to userdomain. Label new glusterd binaries as glusterd_exec_t
-Resolves: rhbz#1409482
+Resolves: rhbz#1404152
+- Label /usr/bin/puppet* binaries as puppet_exec_t
+Resolves: rhbz#1386181
 
-* Wed Nov 09 2016 Lukas Vrabec  <lvrabec@redhat.com> 3.7.19-292.2
-- Allow glusterd to manage socket files labeled as glusterd_brick_t.
-Resolves: rhbz#1393267
-- Allow runnig php7 in fpm mode. From selinux-policy side, we need to allow httpd to read/write hugetlbfs
-Resolves: rhbz#1393253
+* Tue Dec 06 2016 Lukas Vrabec  <lvrabec@redhat.com> 3.7.19-306
+- Allow hostname_t domain to manage cluster_tmp_t files
+Resolves: rhbz#1400234
+- Allow ipsec_mgmt_t domain use nsswitch
+Resolves:rhbz#1401611
+- Allow conman_t domain to list conman_uconfined_script_exec_t dirs.
+Resolves:rhbz#1397117
 
-* Wed Oct 26 2016 Lukas Vrabec  <lvrabec@redhat.com> 3.7.19-292.1
+* Thu Nov 24 2016 Lukas Vrabec  <lvrabec@redhat.com> 3.7.19-305
+- Fix typo bug sepgsql_contexts file
+Resolves: rhbz#1397703
+- Allow sssd_t domain to manage samba files and dirs.
+Resolves: rhbz#1395403
+- Create conman_unconfined_script_t type for conman script stored in /use/share/conman/exec/
+Resolves: rhbz#1397117
+- Allow consolekit_t domain to manage consolekit_log_t dirs
+Resolves: rhbz#1397802
+
+* Mon Nov 14 2016 Lukas Vrabec  <lvrabec@redhat.com> 3.7.19-304
+- Allow _java_t domain to read systemd state.
+Resolves:rhbz#1393938
+- Allow kdumpgui to read/write to nvme filesystem.
+Resolves:rhbz#1323293
+
+* Tue Nov 08 2016 Lukas Vrabec  <lvrabec@redhat.com> 3.7.19-303
+- Dontaudit freeipmi_bmc_watchdog_t to write to /var/lock/kdump/
+Resolves: rhbz#1288565
+- Allow guest-set-user-passwd to set users password
+Resolves: rhbz#1369699
+
+* Tue Nov 08 2016 Lukas Vrabec  <lvrabec@redhat.com> 3.7.19-302
+- Label /var/lock/kdump as kdump_lock_t.
+- Dontaudit freeipmi_bmc_watchdog_t to write to /var/lock/kdump/
+Resolves: rhbz#1288565
+
+* Tue Nov 08 2016 Lukas Vrabec  <lvrabec@redhat.com> 3.7.19-301
+- Allow hald_t to read nvme devices.
+Resolves: rhbz#1389982
+- Allow ftpdctl_t domain to manage own sockets
+Resolves: rhbz#1392525
+
+* Mon Nov 07 2016 Lukas Vrabec  <lvrabec@redhat.com> 3.7.19-300
+- Allow sblim_reposd_t domain to read cert_f files
+Resolves:rhbz#1392382
+- Allow runnig php7 in fpm mode. From selinux-policy side, we need to allow httpd to read/write hugetlbfs.
+Resolves: rhbz#1392406
+
+* Fri Nov 04 2016 Lukas Vrabec  <lvrabec@redhat.com> 3.7.19-299
+- Support for InnoDB Tablespace Encryption.
+Resolves: rhbz#1391525
+
+* Fri Nov 04 2016 Lukas Vrabec  <lvrabec@redhat.com> 3.7.19-298
+- Allow isnsd_t to accept tcp connections
+Resolves:rhbz#1365501
+- Add label for alsa_var_lib_t dirs and files.
+Resolves: rhbz#1340150
+
+* Wed Nov 02 2016 Lukas Vrabec  <lvrabec@redhat.com> 3.7.19-297
+- Remove setgid and setuid capabilities from userdom_login_user_template
+Resolves: rhbz#1378463
+- Allow logrotate to read chronyd keys
+Resolves: rhbz#1390657
+- Allow fail2ban to domtrans to shorewall.
+Resolves: rhbz#1390810
+
+* Tue Nov 01 2016 Lukas Vrabec  <lvrabec@redhat.com> 3.7.19-296
+- Allow hypervvssd_t to read all dirs.
+Resolves: rhbz#1335733
+- Dontaudit abrt_t writing to cert_t files.
+Resolves: rhbz#1334606
+- Allow isns_t domain to connect on port 51954 labeled as isns_port_t.
+Resolves: rhbz#1365501
+- Fixed vsftpd can access nfs even if allow_ftpd_use_nfs is off under specific conditions
+Resolves: rhbz#1310077
+- Allow asterisk domain to connect on port 5222 labeled as jabber_client_port_t
+Resolves:rhbz#1334756
+- Label /etc/puppetlabs as puppet_etc_t.
+Resolves:rhbz#1386181
+- Allow mount to read nvme devices
+Resolves: rhbz#1389982
+- Allow roundup to use nsswitch.
+Resolves: rhbz#1286994
+- Backport domain transition from pegasus_t to rpm_t
+- Allow pegasus to read all sysctls
+- Allow pegasus to read raw memory.
+Resolves:rhbz#980439
+
+* Wed Oct 26 2016 Lukas Vrabec  <lvrabec@redhat.com> 3.7.19-295
 - Allow ipc_lock capability for glusterd.
-- GlusterFS volumes of RDMA transport proceed fuse mount and requires ipc_lock capability.
-Resolves: #1388582
+Resolves: #1384487
+
+* Fri Oct 07 2016 Lukas Vrabec  <lvrabec@redhat.com> 3.7.19-294
+-  Added boolean: authlogin_yubikey
+Resolves:rhbz#1362033
+ - Add new type: alsa_lock_t, Allow alsa_t domain creating files in /var/lock labeled as alsa_lock_t.
+ Resolves:rhbz#1340150
+ - Allow bacula send signull itself.
+ Resolves: rhbz#1313382
+ - label /var/lib/pcsd/ as cluster_var_lib_t.
+ Resolves:rhbz#1326718
+ - Allow httpd also write to anon_inodefs files
+ Resolves: rhbz#1377644
+ - Allow lsmd to read localization. Allow lsmd plugins to exec ldconfig
+ Resolves: rhbz#1336590
+ - Allow auditctl_t domain read localization.
+ Resolves:rhbz#1316444
+ - Allow cobblerd_t to delete dirs labeled as tftpdir_rw_t. Resolves: rhbz#1318166
+ - Allow httpd_t domain to list inotify filesystem
+ Resolves:rhbz#1299552
+ - Allow dovecot_t send signull to dovecot_deliver_t
+ Resolves:rhbz#1320037
+ - Fix couple AVC to start roundup properly
+ Resolves: rhbz#1286994
+ - Allow netlabel_peer_t type to flow over netif_t and node_t, and only be hindered by MLS, need back port to RHEL6
+ Resolves:rhbz#1299306
+ - Add sys_ptrace capability to pegasus domain
+ Resolves:rhbz#980439
+ - Allow sshd to set mcs process categories.
+ Resolves: rhbz#1322409
+ - Add setgid capability to winbind domain. Allow getcap for winbind domain.
+ Resolves: rhbz#1336394
+ - Allow rebuild mdadm arraiy with SELinux enabled in enforcing mode.
+ Resolves: rhbz#1343754
+ - Allow kpropd_t domain to use nsswitch.
+ Resolves: rhbz#1337895
+
+* Mon Sep 26 2016 Lukas Vrabec  <lvrabec@redhat.com> 3.7.19-293
+- Add setgid capability to winbind domain.
+- Allow getcap for winbind domain.
+Resolves: rhbz#1336394
+- Allow rebuild mdadm arraiy with SELinux enabled in enforcing mode.
+Resolves: rhbz#1343754
+- Allow kpropd_t domain to use nsswitch.
+Resolves: rhbz#1337895
+- Allow glusterd to manage socket files labeled as glusterd_brick_t.
+Resolves: rhbz#1331585
 
 * Wed Apr 13 2016 Lukas Vrabec  <lvrabec@redhat.com> 3.7.19-292
 - Allow smbcontrol to create a socket in /var/samba which uses for a communication with smbd, nmbd and winbind.
