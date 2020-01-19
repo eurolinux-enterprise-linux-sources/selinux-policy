@@ -1,0 +1,98 @@
+diff --git a/policy/modules/admin/sudo.if b/policy/modules/admin/sudo.if
+index b6debf340..329eb3922 100644
+--- a/policy/modules/admin/sudo.if
++++ b/policy/modules/admin/sudo.if
+@@ -55,6 +55,7 @@ template(`sudo_role_template',`
+ 	files_tmp_filetrans($1_sudo_t, $1_sudo_tmp_t, file)
+ 
+ 	allow $1_sudo_t $3:dir search_dir_perms;;
++	allow $1_sudo_t $3:file read_file_perms;;
+ 	allow $1_sudo_t $3:key search;
+ 
+ 	# Enter this derived domain from the user domain
+diff --git a/policy/modules/admin/sudo.te b/policy/modules/admin/sudo.te
+index 5c11b48e1..ef069d779 100644
+--- a/policy/modules/admin/sudo.te
++++ b/policy/modules/admin/sudo.te
+@@ -119,6 +119,10 @@ optional_policy(`
+ 	')
+ ')
+ 
++optional_policy(`
++    systemd_write_inherited_logind_sessions_pipes(sudodomain)
++')
++
+ optional_policy(`
+ 	fprintd_dbus_chat(sudodomain)
+ ')
+diff --git a/policy/modules/kernel/domain.if b/policy/modules/kernel/domain.if
+index 5fa83a2fb..34fd0b0f1 100644
+--- a/policy/modules/kernel/domain.if
++++ b/policy/modules/kernel/domain.if
+@@ -602,6 +602,42 @@ interface(`domain_search_all_domains_state',`
+ 	allow $1 domain:dir search_dir_perms;
+ ')
+ 
++########################################
++## <summary>
++##	Allow read and write  of process kernel keyrings
++## </summary>
++## <param name="domain">
++##	<summary>
++##	Domain to dontaudit.
++##	</summary>
++## </param>
++#
++interface(`domain_rw_all_domains_keyrings',`
++	gen_require(`
++		attribute domain;
++	')
++
++	allow $1 domain:key { read write};
++')
++
++########################################
++## <summary>
++##	Allow manage of process kernel keyrings
++## </summary>
++## <param name="domain">
++##	<summary>
++##	Domain to dontaudit.
++##	</summary>
++## </param>
++#
++interface(`domain_manage_all_domains_keyrings',`
++	gen_require(`
++		attribute domain;
++	')
++
++	allow $1 domain:key manage_key_perms;
++')
++
+ ########################################
+ ## <summary>
+ ##	Do not audit attempts to search the process
+diff --git a/policy/modules/roles/staff.te b/policy/modules/roles/staff.te
+index c03a52c04..8569b19db 100644
+--- a/policy/modules/roles/staff.te
++++ b/policy/modules/roles/staff.te
+@@ -55,6 +55,7 @@ storage_read_scsi_generic(staff_t)
+ storage_write_scsi_generic(staff_t)
+ 
+ term_use_unallocated_ttys(staff_t)
++term_use_generic_ptys(staff_t)
+ 
+ auth_domtrans_pam_console(staff_t)
+ 
+diff --git a/policy/modules/system/userdomain.te b/policy/modules/system/userdomain.te
+index cceb511fc..f5139efd2 100644
+--- a/policy/modules/system/userdomain.te
++++ b/policy/modules/system/userdomain.te
+@@ -381,6 +381,7 @@ dontaudit confined_admindomain self:socket create;
+ 
+ allow confined_admindomain user_devpts_t:chr_file { setattr rw_chr_file_perms };
+ term_create_pty(confined_admindomain, user_devpts_t)
++term_use_generic_ptys(confined_admindomain)
+ # avoid annoying messages on terminal hangup on role change
+ dontaudit confined_admindomain user_devpts_t:chr_file ioctl;
+ 

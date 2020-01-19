@@ -20,13 +20,14 @@
 Summary: SELinux policy configuration
 Name: selinux-policy
 Version: 3.13.1
-Release: 252%{?dist}.6
+Release: 229%{?dist}.12
 License: GPLv2+
 Group: System Environment/Base
 Source: serefpolicy-%{version}.tgz
-patch0: policy-rhel-7.7-base.patch
-patch1: policy-rhel-7.7-contrib.patch
-patch2: policy-rhel-7.7.z-contrib.patch
+patch0: policy-rhel-7.6-base.patch
+patch3: policy-rhel-7.6.z-base.patch
+patch1: policy-rhel-7.6-contrib.patch
+patch2: policy-rhel-7.6.z-contrib.patch
 Source1: modules-targeted-base.conf
 Source31: modules-targeted-contrib.conf
 Source2: booleans-targeted.conf
@@ -345,6 +346,7 @@ Based off of reference policy: Checked out revision  2.20091117
 contrib_path=`pwd`
 %setup -n serefpolicy-%{version} -q
 %patch0 -p1
+%patch3 -p1
 refpolicy_path=`pwd`
 cp $contrib_path/* $refpolicy_path/policy/modules/contrib
 rm -rf $refpolicy_path/policy/modules/contrib/kubernetes.*
@@ -655,249 +657,39 @@ fi
 %endif
 
 %changelog
-* Wed Nov 06 2019 Lukas Vrabec <lvrabec@redhat.com> - 3.13.1-252.6
-- Dontaudit tmpreaper_t getting attributes from sysctl_type files
-Resolves: rhbz#1766095
-
-* Thu Oct 31 2019 Lukas Vrabec <lvrabec@redhat.com> - 3.13.1-252.5
-- Allow tmpreaper_t domain to getattr files labeled as mtrr_device_t
-Resolves: rhbz#1766095
-
-* Wed Oct 30 2019 Lukas Vrabec <lvrabec@redhat.com> - 3.13.1-252.4
-- Allow tmpwatch process labeled as tmpreaper_t domain to execute fuser command.
-Resolves: rhbz#1766095
-
-* Wed Oct 30 2019 Lukas Vrabec <lvrabec@redhat.com> - 3.13.1-252.3
-- Update tmpreaper_t policy due to fuser command
-Resolves: rhbz#1766095
-
-* Mon Oct 28 2019 Lukas Vrabec <lvrabec@redhat.com> - 3.13.1-252.2
-- Allow tmpreaper_t domain to read all domains state
-Resolves: rhbz#1766095
-
-* Wed Jul 10 2019 Lukas Vrabec <lvrabec@redhat.com> - 3.13.1-252.1
-- Allow sbd_t domain to use nsswitch
-Resolves: rhbz#1728593
-
-* Thu Jun 27 2019 Lukas Vrabec <lvrabec@redhat.com> - 3.13.1-252
-- Allow ganesha_t domain to connect to tcp portmap_port_t
-Resolves: rhbz#1715088
-
-* Mon Jun 10 2019 Lukas Vrabec <lvrabec@redhat.com> - 3.13.1-251
-- Allow redis to creating tmp files with own label
-Resolves: rhbz#1646765
-
-* Wed Jun 05 2019 Lukas Vrabec <lvrabec@redhat.com> - 3.13.1-250
-- Allow ctdb_t domain to manage samba_var_t files/links/sockets and dirs
-Resolves: rhbz#1716400
-
-* Wed May 22 2019 Lukas Vrabec <lvrabec@redhat.com> - 3.13.1-249
-- Allow nrpe_t domain to read process state of systemd_logind_t
-- Add interface systemd_logind_read_state()
-Resolves: rhbz#1653309
-
-* Tue May 21 2019 Lukas Vrabec <lvrabec@redhat.com> - 3.13.1-248
-- Label /etc/rhsm as rhsmcertd_config_t
-Resolves: rhbz#1703573
-
-* Fri May 17 2019 Lukas Vrabec <lvrabec@redhat.com> - 3.13.1-247
-- Fix typo in gpg SELinux module
-- Update gpg policy to make ti working with confined users
-Resolves: rhbz#1535109
-- Alow nrpe_t to send signull to sssd domain when nagios_run_sudo boolean is turned on
-Resolves: rhbz#1653309
-- Allow nrpe_t domain to be dbus cliennt
-Resolves: rhbz#1653309
-- Add interface sssd_signull()
-Resolves: rhbz#1653309
-- Update userdomains to allow confined users to create gpg keys
-Resolves: rhbz#1535109
-
-* Thu May 02 2019 Lukas Vrabec <lvrabec@redhat.com> - 3.13.1-246
-- Allow ngaios to use chown capability
-Resolves: rhbz#1653309
-- Dontaudit gpg_domain to create netlink_audit sockets
-Resolves: rhbz#1535109
-- Update fs_rw_cephfs_files() interface to allow also caller domain to read/write cephpfs_t lnk files
-Resolves: rhbz#1558836
-- Update domain_can_mmap_files() boolean to allow also mmap lnk files
-
-* Thu Apr 25 2019 Lukas Vrabec <lvrabec@redhat.com> - 3.13.1-245
-- Allow rhsmcertd_t domain to read yum.log file labeled as rpm_log_t
-Resolves: rhbz#1695342
-
-* Tue Apr 23 2019 Lukas Vrabec <lvrabec@redhat.com> - 3.13.1-244
-- Update Nagios policy when sudo is used
-Resolves: rhbz#1653309
-
-* Mon Apr 08 2019 Lukas Vrabec <lvrabec@redhat.com> - 3.13.1-243
+* Tue Apr 09 2019 Lukas Vrabec <lvrabec@redhat.com> - 3.13.1-229.12
 - Allow modemmanager_t domain to write to raw_ip file labeled as sysfs_t
-Resolves: rhbz#1676810
+Resolves: rhbz#1697868
 
-* Tue Mar 26 2019 Lukas Vrabec <lvrabec@redhat.com> - 3.13.1-242
-- Make shell_exec_t type as entrypoint for vmtools_unconfined_t.
-Resolves: rhbz#1656814
-
-* Wed Mar 13 2019 Lukas Vrabec <lvrabec@redhat.com> - 3.13.1-241
-- Update vmtools policy Resolves: rhbz#1656814 Allow domain transition from vmtools_t to vmtools_unconfined_t when shell_exec_t is entrypoint.
-- Allow virt_qemu_ga_t domain to read udev_var_run_t files
-Resolves: rhbz#1663092
+* Tue Mar 26 2019 Lukas Vrabec <lvrabec@redhat.com> - 3.13.1-229.11
 - Update nagios_run_sudo boolean with few allow rules related to accessing sssd
-Resolves: rhbz#1653309
-- Allow nfsd_t to read nvme block devices BZ(1562554)
-Resolves: rhbz#1655493
-- Allow tangd_t domain to bind on tcp ports labeled as tangd_port_t
-Resolves: rhbz#1650909
-- Allow all domains to send dbus msgs to vmtools_unconfined_t processes
-Resolves: rhbz#1656814
-- Label /dev/pkey as crypt_device_t
-Resolves: rhbz#1623068
+Resolves: rhbz#1692893
+
+* Wed Mar 13 2019 Lukas Vrabec <lvrabec@redhat.com> - 3.13.1-229.10
 - Allow sudodomains to write to systemd_logind_sessions_t pipes.
-Resolves: rhbz#1687452
-- Allow all user domains to read realmd_var_lib_t files and dirs to check if IPA is configured on the system
-Resolves: rhbz#1667962
-- Fixes: xenconsole does not start
-Resolves: rhbz#1601525
-- Label /usr/lib64/libcuda.so.XX.XX library as textrel_shlib_t.
-Resolves: rhbz#1636197
-- Create tangd_port_t with default label tcp/7406
-Resolves: rhbz#1650909
+Resolves: rhbz#1688224
 
-* Tue Mar 05 2019 Lukas Vrabec <lvrabec@redhat.com> - 3.13.1-240
-- named wants to access /proc/sys/net/ipv4/ip_local_port_range to get ehphemeral range.
-Resolves: rhbz#1683754
-- Allow sbd_t domain to bypass permission checks for sending signals
-Resolves: rhbz#1671132
-- Allow sbd_t domain read/write all sysctls
-Resolves: rhbz#1671132
-- Allow kpatch_t domain to communicate with policykit_t domsin over dbus
-Resolves: rhbz#1602435
-- Allow boltd_t to stream connect to sytem dbus
-Resolves: rhbz#1589086
-- Update userdom_admin_user_template() and init_prog_run_bpf() interfaces to make working bpftool for confined admin
-Resolves: rhbz#1626115
-- Update unconfined_dbus_send() interface to allow both direction communication over dbus with unconfined process.
-Resolves: rhbz#1589086
-
-* Fri Mar 01 2019 Lukas Vrabec <lvrabec@redhat.com> - 3.13.1-239
-- Allow sbd_t domain read/write all sysctls
-Resolves: rhbz#1671132
-- Allow kpatch_t domain to communicate with policykit_t domsin over dbus
-Resolves: rhbz#1602435
-- Allow boltd_t to stream connect to sytem dbus
-Resolves: rhbz#1589086
-- Update unconfined_dbus_send() interface to allow both direction communication over dbus with unconfined process.
-Resolves: rhbz#1589086
-
-* Mon Feb 25 2019 Lukas Vrabec <lvrabec@redhat.com> - 3.13.1-238
-- Update redis_enable_notify() boolean to fix sending e-mail by redis when this boolean is turned on
-Resolves: rhbz#1646765
-
-* Tue Feb 19 2019 Lukas Vrabec <lvrabec@redhat.com> - 3.13.1-237
-- Allow virtd_lxc_t domains use BPF
-Resolves: rhbz#1626115
-- F29 NetworkManager implements a new code for IPv4 address conflict detection (RFC 5227) based on n-acd [1], which uses eBPF to process ARP packets from the network.
-Resolves: rhbz#1626115
-- Allow unconfined user all perms under bpf class BZ(1565738
-Resolves: rhbz#1626115
-- Allow unconfined and sysadm users to use bpftool BZ(1591440)
-Resolves: rhbz#1626115
-- Allow systemd to manage bpf dirs/files
-Resolves: rhbz#1626115
-- Create new type bpf_t and label /sys/fs/bpf with this type
-Resolves:rhbz#1626115
-- Add new interface init_prog_run_bpf()
-Resolves:rhbz#1626115
-- add definition of bpf class and systemd perms
-Resolves: rhbz#1626115
-
-* Sun Feb 03 2019 Lukas Vrabec <lvrabec@redhat.com> - 3.13.1-236
-- Update policy with multiple allow rules to make working installing VM in MLS policy
-Resolves: rhbz#1558121
-- Allow virt domain to use interited virtlogd domains fifo_file
-Resolves: rhbz#1558121
-- Allow chonyc_t domain to rw userdomain pipes
-Resolves: rhbz#1618757
-- Add file contexts in ganesha.fc file to label logging ganesha files properly.
-Resolves: rhbz#1628247
-
-* Thu Jan 31 2019 Lukas Vrabec <lvrabec@redhat.com> - 3.13.1-235
-- Allow sandbox_xserver_t domain write to user_tmp_t files
-Resolves: rhbz#1646521
-- Allow virt_qemu_ga_t domain to read network state
-Resolves: rhbz#1630347
-- Bolt added d-bus API for force-powering the thunderbolt controller, so system-dbusd needs acces to boltd pipes
-Resolves: rhbz#1589086
-- Add boltd policy
-Resolves: rhbz#1589086
-- Allow virt domains to read/write cephfs filesystems
-Resolves: rhbz#1558836
-- Allow gpg_t to create own tmpfs dirs and sockets
-Resolves: rhbz#1535109
-- Allow gpg_agent_t to send msgs to syslog/journal
-Resolves: rhbz#1535109
-- Allow virtual machine to write to fixed_disk_device_t
-Resolves: rhbz#1499208
-- Update kdump_manage_crash() interface to allow also manage dirs by caller domain
-Resolves: rhbz#1491585
-- Add kpatch policy
-Resolves: rhbz#1602435
-- Label /usr/bin/mysqld_safe_helper as mysqld_exec_t instead of bin_t
-Resolves: rhbz#1623942
-- Allow svnserve_t domain to create in /tmp svn_0 file labeled as krb5_host_rcache_t
-Resolves: rhbz#1475271
-- Allow systemd to mount boltd_var_run_t dirs
-Resolves: rhbz#1589086
-- Allow systemd to mounont boltd lib dirs
-Resolves: rhbz#1589086
-- Allow sysadm_t,staff_t and unconfined_t domain to execute kpatch as kpatch_t domain
-Resolves: rhbz#1602435
-- Allow passwd_t domain chroot
-- Add miscfiles_filetrans_named_content_letsencrypt() to optional_block
-- Allow unconfined domains to create letsencrypt directory in /var/lib labeled as cert_t
-Resolves: rhbz#1447278
-- Allow staff_t user to systemctl iptables units.
-Resolves: rhbz#1360470
-
-* Thu Jan 31 2019 Lukas Vrabec <lvrabec@redhat.com> - 3.13.1-234
-- Label /usr/bin/mysqld_safe_helper as mysqld_exec_t instead of bin_t
-Resolves: rhbz#1623942
-- Allow svnserve_t domain to create in /tmp svn_0 file labeled as krb5_host_rcache_t
-Resolves: rhbz#1475271
-- Allow passwd_t domain chroot
-- Add miscfiles_filetrans_named_content_letsencrypt() to optional_block
-- Allow unconfined domains to create letsencrypt directory in /var/lib labeled as cert_t
-Resolves: rhbz#1447278
-- Allow staff_t user to systemctl iptables units.
-Resolves: rhbz#1360470
-
-* Thu Jan 17 2019 Lukas Vrabec <lvrabec@redhat.com> - 3.13.1-233
+* Thu Jan 17 2019 Lukas Vrabec <lvrabec@redhat.com> - 3.13.1-229.9
 - Allow gssd_t domain to manage kernel keyrings of every domain.
-Resolves: rhbz#1487350
+Resolves: rhbz#1665815
 - Add new interface domain_manage_all_domains_keyrings()
-Resolves: rhbz#1487350
+Resolves: rhbz#1665815
 
-* Sun Jan 13 2019 Lukas Vrabec <lvrabec@redhat.com> - 3.13.1-232
-- Allow gssd_t domain to read/write kernel keyrings of every domain.
-Resolves: rhbz#1487350
+* Mon Jan 14 2019 Lukas Vrabec <lvrabec@redhat.com> - 3.13.1-229.8
 - Add interface domain_rw_all_domains_keyrings()
-Resolves: rhbz#1487350
+Resolves: rhbz#1665815
+- Allow gssd_t domain to read/write kernel keyrings of every domain.
+Resolves: rhbz#1665815
 
-* Wed Dec 19 2018 Lukas Vrabec <lvrabec@redhat.com> - 3.13.1-231
+* Thu Dec 20 2018 Lukas Vrabec <lvrabec@redhat.com> - 3.13.1-229.7
 - Update snapperd policy to allow snapperd manage all non security dirs.
-Resolves: rhbz#1619306
+Resolves: rhbz#1661158
 
-* Fri Nov 09 2018 Lukas Vrabec <lvrabec@redhat.com> - 3.13.1-230
--Allow nova_t domain to use pam
-Resolves: rhbz:#1640528
+* Fri Nov 02 2018 Lukas Vrabec <lvrabec@redhat.com> - 3.13.1-229.6
+- Allow nova_t domain to use pam
+Resolves: rhbz:#1645270
 - sysstat: grant sysstat_t the search_dir_perms set
-Resolves: rhbz#1637416
-- Allow cinder_volume_t domain to dbus chat with systemd_logind_t domain
-Resolves: rhbz#1630318
-- Allow staff_t userdomain and confined_admindomain attribute to allow use generic ptys because of new sudo feature 'io logging'
-Resolves: rhbz#1564470
-- Make ganesha policy active again
-Resolves: rhbz#1511489
+Resolves: rhbz#1645271
 
 * Fri Oct 12 2018 Lukas Vrabec <lvrabec@redhat.com> - 3.13.1-229.5
 - Remove disabling ganesha module in pre install phase of installation new selinux-policy package where ganesha is again standalone module
