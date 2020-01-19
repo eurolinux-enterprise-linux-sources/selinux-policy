@@ -20,12 +20,13 @@
 Summary: SELinux policy configuration
 Name: selinux-policy
 Version: 3.13.1
-Release: 252%{?dist}
+Release: 252%{?dist}.6
 License: GPLv2+
 Group: System Environment/Base
 Source: serefpolicy-%{version}.tgz
 patch0: policy-rhel-7.7-base.patch
 patch1: policy-rhel-7.7-contrib.patch
+patch2: policy-rhel-7.7.z-contrib.patch
 Source1: modules-targeted-base.conf
 Source31: modules-targeted-contrib.conf
 Source2: booleans-targeted.conf
@@ -340,6 +341,7 @@ Based off of reference policy: Checked out revision  2.20091117
 %prep 
 %setup -n serefpolicy-contrib-%{version} -q -b 29
 %patch1 -p1
+%patch2 -p1
 contrib_path=`pwd`
 %setup -n serefpolicy-%{version} -q
 %patch0 -p1
@@ -653,6 +655,30 @@ fi
 %endif
 
 %changelog
+* Wed Nov 06 2019 Lukas Vrabec <lvrabec@redhat.com> - 3.13.1-252.6
+- Dontaudit tmpreaper_t getting attributes from sysctl_type files
+Resolves: rhbz#1766095
+
+* Thu Oct 31 2019 Lukas Vrabec <lvrabec@redhat.com> - 3.13.1-252.5
+- Allow tmpreaper_t domain to getattr files labeled as mtrr_device_t
+Resolves: rhbz#1766095
+
+* Wed Oct 30 2019 Lukas Vrabec <lvrabec@redhat.com> - 3.13.1-252.4
+- Allow tmpwatch process labeled as tmpreaper_t domain to execute fuser command.
+Resolves: rhbz#1766095
+
+* Wed Oct 30 2019 Lukas Vrabec <lvrabec@redhat.com> - 3.13.1-252.3
+- Update tmpreaper_t policy due to fuser command
+Resolves: rhbz#1766095
+
+* Mon Oct 28 2019 Lukas Vrabec <lvrabec@redhat.com> - 3.13.1-252.2
+- Allow tmpreaper_t domain to read all domains state
+Resolves: rhbz#1766095
+
+* Wed Jul 10 2019 Lukas Vrabec <lvrabec@redhat.com> - 3.13.1-252.1
+- Allow sbd_t domain to use nsswitch
+Resolves: rhbz#1728593
+
 * Thu Jun 27 2019 Lukas Vrabec <lvrabec@redhat.com> - 3.13.1-252
 - Allow ganesha_t domain to connect to tcp portmap_port_t
 Resolves: rhbz#1715088
