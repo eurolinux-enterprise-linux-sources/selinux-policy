@@ -84,6 +84,37 @@ index c03a52c04..8569b19db 100644
  
  auth_domtrans_pam_console(staff_t)
  
+diff --git a/policy/modules/system/systemd.if b/policy/modules/system/systemd.if
+index 8f75416ce..d5f2f5b4a 100644
+--- a/policy/modules/system/systemd.if
++++ b/policy/modules/system/systemd.if
+@@ -351,6 +351,26 @@ interface(`systemd_use_fds_logind',`
+ 	allow $1 systemd_logind_t:fd use;
+ ')
+ 
++########################################
++## <summary>
++##	Read the process state (/proc/pid) of systemd_logind_t.
++## </summary>
++## <param name="domain">
++##	<summary>
++##	Domain allowed access.
++##	</summary>
++## </param>
++#
++interface(`systemd_logind_read_state',`
++	gen_require(`
++		type systemd_logind_t;
++	')
++
++	allow $1 systemd_logind_t:dir search_dir_perms;
++	allow $1 systemd_logind_t:file read_file_perms;
++	allow $1 systemd_logind_t:lnk_file read_lnk_file_perms;
++')
++
+ ######################################
+ ## <summary>
+ ##	Read logind sessions files.
 diff --git a/policy/modules/system/userdomain.te b/policy/modules/system/userdomain.te
 index cceb511fc..f5139efd2 100644
 --- a/policy/modules/system/userdomain.te

@@ -372,9 +372,27 @@ index 5a177cd5a..c7fd00ea0 100644
  dev_rw_modem(modemmanager_t)
  
 diff --git a/nagios.te b/nagios.te
-index a5e1cfda8..4141c6374 100644
+index a5e1cfda8..02b65a000 100644
 --- a/nagios.te
 +++ b/nagios.te
+@@ -115,7 +115,7 @@ userdom_use_inherited_user_ttys(nagios_plugin_domain)
+ # Nagios local policy
+ #
+ 
+-allow nagios_t self:capability { dac_read_search dac_override setgid setuid };
++allow nagios_t self:capability { chown dac_read_search dac_override setgid setuid };
+ dontaudit nagios_t self:capability sys_tty_config;
+ allow nagios_t self:process { setpgid signal_perms };
+ allow nagios_t self:fifo_file rw_fifo_file_perms;
+@@ -203,7 +203,7 @@ mta_kill_system_mail(nagios_t)
+ systemd_exec_systemctl(nagios_t)
+ 
+ tunable_policy(`nagios_run_sudo',`
+-    allow nagios_t self:capability { setuid setgid sys_resource sys_ptrace };
++    allow nagios_t self:capability { chown setuid setgid sys_resource sys_ptrace };
+     allow nagios_t self:process { setrlimit setsched };
+ 
+     allow nagios_t self:key write;
 @@ -217,6 +217,9 @@ tunable_policy(`nagios_run_sudo',`
  
      selinux_compute_access_vector(nagios_t)
@@ -385,17 +403,42 @@ index a5e1cfda8..4141c6374 100644
      logging_send_audit_msgs(nagios_t)
  ')
  
-@@ -365,6 +368,9 @@ tunable_policy(`nagios_run_sudo',`
+@@ -224,6 +227,10 @@ optional_policy(`
+     apache_systemctl(nagios_t)
+ ')
+ 
++optional_policy(`
++	dbus_system_bus_client(nagios_t)
++')
++
+ optional_policy(`
+     tunable_policy(`nagios_run_sudo',`
+         sudo_exec(nagios_t)
+@@ -231,6 +238,12 @@ optional_policy(`
+     ')
+ ')
+ 
++optional_policy(`
++    tunable_policy(`nagios_run_sudo',`
++	    init_read_utmp(nagios_t)
++    ')
++')
++
+ tunable_policy(`nagios_run_pnp4nagios',`
+     allow nagios_t nagios_log_t:file execute;
+ ')
+@@ -365,6 +378,10 @@ tunable_policy(`nagios_run_sudo',`
  
      selinux_compute_access_vector(nrpe_t)
  
 +    systemd_write_inherited_logind_sessions_pipes(nrpe_t)
 +    systemd_dbus_chat_logind(nrpe_t)
++    systemd_logind_read_state(nrpe_t)
 +
      logging_send_audit_msgs(nrpe_t)
  ')
  
-@@ -375,6 +381,13 @@ optional_policy(`
+@@ -375,6 +392,14 @@ optional_policy(`
      ')
  ')
  
@@ -404,12 +447,24 @@ index a5e1cfda8..4141c6374 100644
 +        sssd_read_config(nrpe_t)
 +        sssd_manage_lib_files(nrpe_t)
 +        sssd_read_pid_files(nrpe_t)
++        sssd_signull(nrpe_t)
 +    ')
 +')
  
  tunable_policy(`nagios_use_nfs',`
  	fs_manage_nfs_files(nrpe_t)
-@@ -616,3 +629,7 @@ optional_policy(`
+@@ -382,6 +407,10 @@ tunable_policy(`nagios_use_nfs',`
+     fs_manage_nfs_symlinks(nrpe_t)
+ ')
+ 
++optional_policy(`
++    dbus_system_bus_client(nrpe_t)
++')
++
+ optional_policy(`
+ 	inetd_tcp_service_domain(nrpe_t, nrpe_exec_t)
+ ')
+@@ -616,3 +645,7 @@ optional_policy(`
  optional_policy(`
  	unconfined_domain(nagios_unconfined_plugin_t)
  ')
@@ -591,6 +646,19 @@ index 7394a0dfc..4402cbe09 100644
  typealias rpm_var_lib_t alias var_lib_rpm_t;
  
  type rpm_var_cache_t;
+diff --git a/sbd.te b/sbd.te
+index 202904c19..d415d2c8a 100644
+--- a/sbd.te
++++ b/sbd.te
+@@ -37,6 +37,8 @@ manage_files_pattern(sbd_t, sbd_tmpfs_t, sbd_tmpfs_t)
+ manage_dirs_pattern(sbd_t, sbd_tmpfs_t, sbd_tmpfs_t)
+ fs_tmpfs_filetrans(sbd_t, sbd_tmpfs_t, { file dir })
+ 
++auth_use_nsswitch(sbd_t)
++
+ kernel_read_system_state(sbd_t)
+ kernel_dgram_send(sbd_t)
+ kernel_rw_kernel_sysctl(sbd_t)
 diff --git a/snapper.fc b/snapper.fc
 index 4f4bdb397..0a43846a8 100644
 --- a/snapper.fc
@@ -625,6 +693,35 @@ index 8c9e4a200..5be6d3542 100644
  
  fs_getattr_all_fs(snapperd_t)
  fs_mount_xattr_fs(snapperd_t)
+diff --git a/sssd.if b/sssd.if
+index 47530e258..2d4b9b2fa 100644
+--- a/sssd.if
++++ b/sssd.if
+@@ -502,6 +502,24 @@ interface(`sssd_rw_inherited_pipes',`
+     allow $1 sssd_t:fifo_file rw_inherited_fifo_file_perms;
+ ')
+ 
++########################################
++## <summary>
++##  Allow caller to signull sssd.
++## </summary>
++## <param name="domain">
++##      <summary>
++##      Domain allowed access.
++##      </summary>
++## </param>
++#
++interface(`sssd_signull',`
++	gen_require(`
++		type sssd_t;
++	')
++
++	allow $1 sssd_t:process signull;
++')
++
+ ########################################
+ ## <summary>
+ ##	Transition to sssd named content
 diff --git a/sysstat.te b/sysstat.te
 index a2690e315..efb2f855c 100644
 --- a/sysstat.te

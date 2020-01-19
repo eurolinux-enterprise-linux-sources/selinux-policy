@@ -20,7 +20,7 @@
 Summary: SELinux policy configuration
 Name: selinux-policy
 Version: 3.13.1
-Release: 229%{?dist}.12
+Release: 229%{?dist}.15
 License: GPLv2+
 Group: System Environment/Base
 Source: serefpolicy-%{version}.tgz
@@ -657,6 +657,21 @@ fi
 %endif
 
 %changelog
+* Wed Jul 10 2019 Lukas Vrabec <lvrabec@redhat.com> - 3.13.1-229.15
+- Allow sbd_t domain to use nsswitch
+Resolves: rhbz#1728592
+
+* Mon May 27 2019 Lukas Vrabec <lvrabec@redhat.com> - 3.13.1-229.14
+- Allow nrpe_t domain to read process state of systemd_logind_t
+- Alow nrpe_t to send signull to sssd domain when nagios_run_sudo boolean is turned on
+- Allow nrpe_t domain to be dbus cliennt
+- Allow ngaios to use chown capability
+Resolves: rhbz#1692893
+
+* Tue Apr 23 2019 Lukas Vrabec <lvrabec@redhat.com> - 3.13.1-229.13
+- Update Nagios policy when sudo is used
+Resolves: rhbz#1692893
+
 * Tue Apr 09 2019 Lukas Vrabec <lvrabec@redhat.com> - 3.13.1-229.12
 - Allow modemmanager_t domain to write to raw_ip file labeled as sysfs_t
 Resolves: rhbz#1697868
